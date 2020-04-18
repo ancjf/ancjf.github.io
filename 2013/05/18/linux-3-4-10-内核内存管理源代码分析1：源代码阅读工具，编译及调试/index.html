@@ -2,9 +2,9 @@
 <html>
 <head>
   <meta charset="utf-8">
-  <title>Hello World | 机器人的博客</title>
-  <meta name="keywords" content="">
-  <meta name="description" content="Hello World | 机器人的博客">
+  <title>linux 源代码分析1:源代码阅读工具，编译及调试 | 机器人的博客</title>
+  <meta name="keywords" content=" linux , 内存管理 ">
+  <meta name="description" content="linux 源代码分析1:源代码阅读工具，编译及调试 | 机器人的博客">
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
 <meta property="og:type" content="article">
 <meta property="og:title" content="以太坊">
@@ -417,21 +417,33 @@
 </aside>
 <div class="post">
     <div class="pjax">
-        <article id="post-hello-world" class="article article-type-post" itemscope itemprop="blogPost">
+        <article id="post-linux-3-4-10-内核内存管理源代码分析1：源代码阅读工具，编译及调试" class="article article-type-post" itemscope itemprop="blogPost">
     
-        <h1 class="article-title">Hello World</h1>
+        <h1 class="article-title">linux 源代码分析1:源代码阅读工具，编译及调试</h1>
     
     <div class="article-meta">
         
-        <span class="top"><a>置顶</a></span>
         
         
+        <span class="book">
+            
+                <a  data-rel="linux">linux</a>
+            
+        </span>
         
+        
+        <span class="tag">
+            
+            <a class="color1">linux</a>
+            
+            <a class="color5">内存管理</a>
+            
+        </span>
         
     </div>
     <div class="article-meta">
         
-        创建时间:<time class="date" title='更新时间: 2020-04-18 14:45:26'>2020-03-29 16:05</time>
+        创建时间:<time class="date" title='更新时间: 2020-04-18 14:42:29'>2013-05-18 10:18</time>
         
     </div>
     <div class="article-meta">
@@ -453,7 +465,7 @@
     
     <div class="toc-ref">
     
-        <ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#Quick-Start"><span class="toc-text">Quick Start</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#Create-a-new-post"><span class="toc-text">Create a new post</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#Run-server"><span class="toc-text">Run server</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#Generate-static-files"><span class="toc-text">Generate static files</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#Deploy-to-remote-sites"><span class="toc-text">Deploy to remote sites</span></a></li></ol></li></ol>
+        <ol class="toc"><li class="toc-item toc-level-1"><a class="toc-link" href="#在分析源代码之前先介绍阅读源代码使用的工具，编译和调试源代码的方法。"><span class="toc-text">在分析源代码之前先介绍阅读源代码使用的工具，编译和调试源代码的方法。</span></a><ol class="toc-child"><li class="toc-item toc-level-2"><a class="toc-link" href="#内核调试："><span class="toc-text">内核调试：</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#编译内核"><span class="toc-text">编译内核</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#安装qemu"><span class="toc-text">安装qemu</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#创建一个软连接"><span class="toc-text">创建一个软连接</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#调试："><span class="toc-text">调试：</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#开启另外一个命令窗口，进入解压的内核源代码目录，运行命令："><span class="toc-text">开启另外一个命令窗口，进入解压的内核源代码目录，运行命令：</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#在gdb命令行下输入命令"><span class="toc-text">在gdb命令行下输入命令</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#现在可以用gdb命令像调试普通程序一样调试内核"><span class="toc-text">现在可以用gdb命令像调试普通程序一样调试内核</span></a></li></ol></li></ol>
     
 <style>
     .left-col .switch-btn,
@@ -469,20 +481,19 @@
     
     <div class="article-entry" itemprop="articleBody">
       
-        <p>Welcome to <a href="https://hexo.io/" target="_blank" rel="noopener">Hexo</a>! This is your very first post. Check <a href="https://hexo.io/docs/" target="_blank" rel="noopener">documentation</a> for more info. If you get any problems when using Hexo, you can find the answer in <a href="https://hexo.io/docs/troubleshooting.html" target="_blank" rel="noopener">troubleshooting</a> or you can ask me on <a href="https://github.com/hexojs/hexo/issues" target="_blank" rel="noopener">GitHub</a>.</p>
-<h2 id="Quick-Start"><a href="#Quick-Start" class="headerlink" title="Quick Start"></a>Quick Start</h2><h3 id="Create-a-new-post"><a href="#Create-a-new-post" class="headerlink" title="Create a new post"></a>Create a new post</h3><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">$ hexo new <span class="string">"My New Post"</span></span><br></pre></td></tr></table></figure>
-
-<p>More info: <a href="https://hexo.io/docs/writing.html" target="_blank" rel="noopener">Writing</a></p>
-<h3 id="Run-server"><a href="#Run-server" class="headerlink" title="Run server"></a>Run server</h3><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">$ hexo server</span><br></pre></td></tr></table></figure>
-
-<p>More info: <a href="https://hexo.io/docs/server.html" target="_blank" rel="noopener">Server</a></p>
-<h3 id="Generate-static-files"><a href="#Generate-static-files" class="headerlink" title="Generate static files"></a>Generate static files</h3><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">$ hexo generate</span><br></pre></td></tr></table></figure>
-
-<p>More info: <a href="https://hexo.io/docs/generating.html" target="_blank" rel="noopener">Generating</a></p>
-<h3 id="Deploy-to-remote-sites"><a href="#Deploy-to-remote-sites" class="headerlink" title="Deploy to remote sites"></a>Deploy to remote sites</h3><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">$ hexo deploy</span><br></pre></td></tr></table></figure>
-
-<p>More info: <a href="https://hexo.io/docs/one-command-deployment.html" target="_blank" rel="noopener">Deployment</a></p>
-
+        <h1 id="在分析源代码之前先介绍阅读源代码使用的工具，编译和调试源代码的方法。"><a href="#在分析源代码之前先介绍阅读源代码使用的工具，编译和调试源代码的方法。" class="headerlink" title="在分析源代码之前先介绍阅读源代码使用的工具，编译和调试源代码的方法。"></a>在分析源代码之前先介绍阅读源代码使用的工具，编译和调试源代码的方法。</h1><pre><code>这篇连载是对linux 3.4.10 内核内存管理源代码分析</code></pre><h2 id="内核调试："><a href="#内核调试：" class="headerlink" title="内核调试："></a>内核调试：</h2><pre><code>我分析Linux源代码是用source insght，但在内核中源代码中有众多的宏和平台，一个函数可能有平台和配置不同的执行流程，用调试内核的方法可以确定函数的执行流程。这里分析的流程是在网站站下载的源码包linux-3.4.10.tar.bz2。
+下面介绍Linux源代码调试方法：
+编译调试环境我用的是用光盘映像ubuntu-12.04.1-desktop-i386.iso安装的系统。</code></pre><h2 id="编译内核"><a href="#编译内核" class="headerlink" title="编译内核"></a>编译内核</h2><pre><code>在编译内核前要安装libncurses：
+apt-get install libncurses5-dev
+解压并进入源代码目录
+tar xjf linux-3.4.10.tar.bz2
+cd linux-3.4.10
+需要运行命令进行配置，不用改任何配置，直接保存退出就可以了
+make menuconfig
+编译内核
+make bzImage</code></pre><h2 id="安装qemu"><a href="#安装qemu" class="headerlink" title="安装qemu"></a>安装qemu</h2><pre><code>apt-get install qemu</code></pre><h2 id="创建一个软连接"><a href="#创建一个软连接" class="headerlink" title="创建一个软连接"></a>创建一个软连接</h2><pre><code>ln -s /usr/bin/qemu-system-x86_64 /usr/bin/qemu</code></pre><h2 id="调试："><a href="#调试：" class="headerlink" title="调试："></a>调试：</h2><pre><code>在刚才解压的内核源代码目录下运行命令
+qemu -kernel ./arch/x86/boot/bzImage -append &quot;root=/dev/ram0 rw&quot; -s -S</code></pre><h2 id="开启另外一个命令窗口，进入解压的内核源代码目录，运行命令："><a href="#开启另外一个命令窗口，进入解压的内核源代码目录，运行命令：" class="headerlink" title="开启另外一个命令窗口，进入解压的内核源代码目录，运行命令："></a>开启另外一个命令窗口，进入解压的内核源代码目录，运行命令：</h2><pre><code>gdb vmlinux</code></pre><h2 id="在gdb命令行下输入命令"><a href="#在gdb命令行下输入命令" class="headerlink" title="在gdb命令行下输入命令"></a>在gdb命令行下输入命令</h2><pre><code>target remote localhost:1234
+b start_kernel</code></pre><h2 id="现在可以用gdb命令像调试普通程序一样调试内核"><a href="#现在可以用gdb命令像调试普通程序一样调试内核" class="headerlink" title="现在可以用gdb命令像调试普通程序一样调试内核"></a>现在可以用gdb命令像调试普通程序一样调试内核</h2>
       
        <hr><span style="font-style: italic;color: gray;"> 转载请注明来源，欢迎对文章中的引用来源进行考证，欢迎指出任何有错误或不够清晰的表达。可以在下面评论区评论，也可以邮件至 ancjf@163.com </span>
     </div>
@@ -495,12 +506,12 @@
 
 
 <div class="article_copyright">
-    <p><span class="copy-title">文章标题:</span>Hello World</p>
+    <p><span class="copy-title">文章标题:</span>linux 源代码分析1:源代码阅读工具，编译及调试</p>
     
     <p><span class="copy-title">本文作者:</span><a  title="ancjf">ancjf</a></p>
-    <p><span class="copy-title">发布时间:</span>2020-03-29, 16:05:21</p>
-    <p><span class="copy-title">最后更新:</span>2020-04-18, 14:45:26</p>
-    <span class="copy-title">原始链接:</span><a class="post-url" href="/2020/03/29/hello-world/" title="Hello World">http://ancjf.com/2020/03/29/hello-world/</a>
+    <p><span class="copy-title">发布时间:</span>2013-05-18, 10:18:17</p>
+    <p><span class="copy-title">最后更新:</span>2020-04-18, 14:42:29</p>
+    <span class="copy-title">原始链接:</span><a class="post-url" href="/2013/05/18/linux-3-4-10-%E5%86%85%E6%A0%B8%E5%86%85%E5%AD%98%E7%AE%A1%E7%90%86%E6%BA%90%E4%BB%A3%E7%A0%81%E5%88%86%E6%9E%901%EF%BC%9A%E6%BA%90%E4%BB%A3%E7%A0%81%E9%98%85%E8%AF%BB%E5%B7%A5%E5%85%B7%EF%BC%8C%E7%BC%96%E8%AF%91%E5%8F%8A%E8%B0%83%E8%AF%95/" title="linux 源代码分析1:源代码阅读工具，编译及调试">http://ancjf.com/2013/05/18/linux-3-4-10-%E5%86%85%E6%A0%B8%E5%86%85%E5%AD%98%E7%AE%A1%E7%90%86%E6%BA%90%E4%BB%A3%E7%A0%81%E5%88%86%E6%9E%901%EF%BC%9A%E6%BA%90%E4%BB%A3%E7%A0%81%E9%98%85%E8%AF%BB%E5%B7%A5%E5%85%B7%EF%BC%8C%E7%BC%96%E8%AF%91%E5%8F%8A%E8%B0%83%E8%AF%95/</a>
     <p>
         <span class="copy-title">版权声明:</span><i class="fa fa-creative-commons"></i> <a rel="license noopener" href="http://creativecommons.org/licenses/by-nc-sa/4.0/" target="_blank" title="CC BY-NC-SA 4.0 International" target = "_blank">"署名-非商用-相同方式共享 4.0"</a> 转载请保留原文链接及作者。
     </p>

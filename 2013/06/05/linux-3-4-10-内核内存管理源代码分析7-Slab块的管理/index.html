@@ -2,9 +2,9 @@
 <html>
 <head>
   <meta charset="utf-8">
-  <title>Hello World | 机器人的博客</title>
-  <meta name="keywords" content="">
-  <meta name="description" content="Hello World | 机器人的博客">
+  <title>linux 源代码分析7:Slab块的管理 | 机器人的博客</title>
+  <meta name="keywords" content=" linux , 内存管理 , 伙伴系统 , Slab ">
+  <meta name="description" content="linux 源代码分析7:Slab块的管理 | 机器人的博客">
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
 <meta property="og:type" content="article">
 <meta property="og:title" content="以太坊">
@@ -417,21 +417,37 @@
 </aside>
 <div class="post">
     <div class="pjax">
-        <article id="post-hello-world" class="article article-type-post" itemscope itemprop="blogPost">
+        <article id="post-linux-3-4-10-内核内存管理源代码分析7-Slab块的管理" class="article article-type-post" itemscope itemprop="blogPost">
     
-        <h1 class="article-title">Hello World</h1>
+        <h1 class="article-title">linux 源代码分析7:Slab块的管理</h1>
     
     <div class="article-meta">
         
-        <span class="top"><a>置顶</a></span>
         
         
+        <span class="book">
+            
+                <a  data-rel="linux">linux</a>
+            
+        </span>
         
+        
+        <span class="tag">
+            
+            <a class="color1">linux</a>
+            
+            <a class="color5">内存管理</a>
+            
+            <a class="color5">伙伴系统</a>
+            
+            <a class="color5">Slab</a>
+            
+        </span>
         
     </div>
     <div class="article-meta">
         
-        创建时间:<time class="date" title='更新时间: 2020-04-18 14:45:26'>2020-03-29 16:05</time>
+        创建时间:<time class="date" title='更新时间: 2020-04-18 14:36:59'>2013-06-05 20:56</time>
         
     </div>
     <div class="article-meta">
@@ -453,7 +469,7 @@
     
     <div class="toc-ref">
     
-        <ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#Quick-Start"><span class="toc-text">Quick Start</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#Create-a-new-post"><span class="toc-text">Create a new post</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#Run-server"><span class="toc-text">Run server</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#Generate-static-files"><span class="toc-text">Generate static files</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#Deploy-to-remote-sites"><span class="toc-text">Deploy to remote sites</span></a></li></ol></li></ol>
+        <ol class="toc"><li class="toc-item toc-level-1"><a class="toc-link" href="#Slab块的管理"><span class="toc-text">Slab块的管理</span></a><ol class="toc-child"><li class="toc-item toc-level-2"><a class="toc-link" href="#index-to-obj和obj-to-index函数"><span class="toc-text">index_to_obj和obj_to_index函数</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#slab-get-obj和slab-put-obj函数"><span class="toc-text">slab_get_obj和slab_put_obj函数</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#slab-put-obj-函数"><span class="toc-text">slab_put_obj 函数</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#cache-init-objs函数"><span class="toc-text">cache_init_objs函数</span></a></li></ol></li></ol>
     
 <style>
     .left-col .switch-btn,
@@ -469,20 +485,142 @@
     
     <div class="article-entry" itemprop="articleBody">
       
-        <p>Welcome to <a href="https://hexo.io/" target="_blank" rel="noopener">Hexo</a>! This is your very first post. Check <a href="https://hexo.io/docs/" target="_blank" rel="noopener">documentation</a> for more info. If you get any problems when using Hexo, you can find the answer in <a href="https://hexo.io/docs/troubleshooting.html" target="_blank" rel="noopener">troubleshooting</a> or you can ask me on <a href="https://github.com/hexojs/hexo/issues" target="_blank" rel="noopener">GitHub</a>.</p>
-<h2 id="Quick-Start"><a href="#Quick-Start" class="headerlink" title="Quick Start"></a>Quick Start</h2><h3 id="Create-a-new-post"><a href="#Create-a-new-post" class="headerlink" title="Create a new post"></a>Create a new post</h3><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">$ hexo new <span class="string">"My New Post"</span></span><br></pre></td></tr></table></figure>
+        <h1 id="Slab块的管理"><a href="#Slab块的管理" class="headerlink" title="Slab块的管理"></a>Slab块的管理</h1><pre><code>从slab中分配出去的内存实际都是slab从伙伴系统申请一块内存，然后分割成若干小块，再分配出去。
+一个slab块被划分为长度相等的若干小块，第零个小块的首地址保存在struct slab的成员s_mem中，每个小块都有个编号，在一个slab块中是唯一的。一块从伙伴系统申请的内存块用structslab描述，一块slab的控制数据并不完全是保存在struct slab中，因为还需要一些数据来保存空闲小块的信息，不同的slab缓存中的slab块可能包含小块的数量不一样。空闲小块实际是以单向编号链表的方式管理的，对每个小块有一个编号，每个编号在编号链表中有一项用来保存指向下一项的编号。当分配内存时从链表头取下一项，但释放内存时把释放项加入链表头。空闲链表总是保存在struct slab结构之后。下图是一个包含6个小块，3个空闲小块的slab块的控制数据示例图，最前面方格保存struct slab结构，后面是slab空闲编号链表。
+获取Slab块的空闲编号链表的地址的函数是slab_bufctl，在mm/slab.c中实现，代码如下：
+2804 static inline kmem_bufctl_t*slab_bufctl(struct slab *slabp)
+2805 {
+2806        return (kmem_bufctl_t *) (slabp + 1);
+2807 }</code></pre><h2 id="index-to-obj和obj-to-index函数"><a href="#index-to-obj和obj-to-index函数" class="headerlink" title="index_to_obj和obj_to_index函数"></a>index_to_obj和obj_to_index函数</h2><pre><code>小块编号到小块的虚拟地址的转换由index_to_obj实现，小块的虚拟地址到小块编号由obj_to_index实现，这两个函数都在mm/slab.c中实现，代码如下：
+532 static inline void *index_to_obj(structkmem_cache *cache, struct slab *slab,
+533                                  unsigned intidx)
+534{
+535        return slab-&gt;s_mem + cache-&gt;buffer_size * idx;
+536}
+537
+538/*
+539  *We want to avoid an expensive divide : (offset / cache-&gt;buffer_size)
+540 *   Using the fact thatbuffer_size is a constant for a particular cache,
+541 *   we can replace (offset /cache-&gt;buffer_size) by
+542 *   reciprocal_divide(offset,cache-&gt;reciprocal_buffer_size)
+543  */
+544static inline unsigned int obj_to_index(const struct kmem_cache *cache,
+545                                         conststruct slab *slab, void *obj)
+546{
+547        u32 offset = (obj - slab-&gt;s_mem);
+548        return reciprocal_divide(offset, cache-&gt;reciprocal_buffer_size);
+549}
+编号和地址的转换需要小块的长度信息，slab缓存中小块的长度保存在structkmem_cache的成员buffer_size中。index_to_obj比较简单，下面只说说obj_to_index
+reciprocal_buffer_size的计算方法在mm/slab.c中的kmem_cache_init中
+1563        cache_cache.reciprocal_buffer_size =
+1564                reciprocal_value(cache_cache.buffer_size);
+reciprocal_value的代码中lib/reciprocal_div.c中，如下：
+ 5u32 reciprocal_value(u32 k)
+ 6 {
+7         u64 val = (1LL &lt;&lt;32) + (k - 1);
+8         do_div(val, k);
+9         return (u32)val;
+10 }
+reciprocal_divide的代码在include/linux/reciprocal_div.h中，如下
+28 static inline u32 reciprocal_divide(u32A, u32 R)
+29 {
+30        return (u32)(((u64)A * R) &gt;&gt; 32);
+31 }
+综合起来obj_to_index的计算公式就是(((2^32+(buffer_size-1))/buffer_size)* offset)/2^32
+由(((2^32+(buffer_size-1))/ buffer_size)* offset)/2^32          &lt;= (((2^32+(buffer_size-1)) * offset)/ buffer_size)/2^32        ==          (((2^32+(buffer_size-1)) * offset) /2^32) / buffer_size ==( (2^32 * offset + (buffer_size-1) * offset) / 2^32)/ buffer_size= (2^32 * offset) / 2^32 / buffer_size = offset/ buffer_size,这样就得到了(((2^32+(buffer_size-1))/ buffer_size)* offset)/2^32        &lt;= offset/ buffer_size,这个推导使用了条件(buffer_size-1) * offset &lt; 2^32
+另外有offset/ buffer_size     &lt;=     (((2^32+(buffer_size-1))/ buffer_size)* offset)/2^32
+只要offset * 2^32  &lt;=     ((2^32+(buffer_size-1))/buffer_size)* offset) * buffer_size
+只要offset * 2^32  &lt;=     ((2^32+(buffer_size-1))/buffer_size)* buffer_size) * offset
+只要2^32        &lt;=     ((2^32+(buffer_size-1))/buffer_size)* buffer_size)，这个条件总是满足的，所以offset/buffer_size     &lt;=         (((2^32+(buffer_size-1))/ buffer_size)*offset)/2^32也成立。
+这样我们得到了offset/ buffer_size     ==     (((2^32+(buffer_size-1))/ buffer_size)* offset)/2^32
+正如obj_to_index所注释的，obj_to_index的计算结果是offset/ buffer_size，这样实现只是为了避免使用除法，因为除法指令执行比较慢。</code></pre><h2 id="slab-get-obj和slab-put-obj函数"><a href="#slab-get-obj和slab-put-obj函数" class="headerlink" title="slab_get_obj和slab_put_obj函数"></a>slab_get_obj和slab_put_obj函数</h2><pre><code>从slab块分配对象的函数是slab_get_obj，在mm/slab.c中实现，代码如下：
+2866static void *slab_get_obj(struct kmem_cache *cachep, struct slab *slabp,
+2867                                 int nodeid)
+2868 {
+2869        void *objp = index_to_obj(cachep, slabp, slabp-&gt;free);
+2870        kmem_bufctl_t next;
+2871
+2872        slabp-&gt;inuse++;
+2873        next = slab_bufctl(slabp)[slabp-&gt;free];
+2874 #if DEBUG
+2875        slab_bufctl(slabp)[slabp-&gt;free] = BUFCTL_FREE;
+2876        WARN_ON(slabp-&gt;nodeid != nodeid);
+2877 #endif
+2878        slabp-&gt;free = next;
+2879
+2880        return objp;
+2881 }
 
-<p>More info: <a href="https://hexo.io/docs/writing.html" target="_blank" rel="noopener">Writing</a></p>
-<h3 id="Run-server"><a href="#Run-server" class="headerlink" title="Run server"></a>Run server</h3><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">$ hexo server</span><br></pre></td></tr></table></figure>
+2869行获得空闲编号链表头的指针，2872行更新使用的分配出去的对象计数，2873行获得下一个空闲编号，2878把下一个空闲编号作为链表头保存起来。
+释放小块内存到slab块的函数是slab_put_obj，在mm/slab.c中实现，代码如下：</code></pre><h2 id="slab-put-obj-函数"><a href="#slab-put-obj-函数" class="headerlink" title="slab_put_obj 函数"></a>slab_put_obj 函数</h2><pre><code>2883 static void slab_put_obj(structkmem_cache *cachep, struct slab *slabp,
+2884                                 void *objp,int nodeid)
+2885 {
+2886        unsigned int objnr = obj_to_index(cachep, slabp, objp);
+2887
+2888 #if DEBUG
+2889        /* Verify that the slab belongs to the intended node */
+2890        WARN_ON(slabp-&gt;nodeid != nodeid);
+2891
+2892        if (slab_bufctl(slabp)[objnr] + 1 &lt;= SLAB_LIMIT + 1) {
+2893                 printk(KERN_ERR &quot;slab:double free detected in cache &quot;
+2894                                 &quot;&apos;%s&apos;,objp %p\n&quot;, cachep-&gt;name, objp);
+2895                BUG();
+2896        }
+2897 #endif
+2898        slab_bufctl(slabp)[objnr] = slabp-&gt;free;
+2899        slabp-&gt;free = objnr;
+2900        slabp-&gt;inuse--;
+2901 }
 
-<p>More info: <a href="https://hexo.io/docs/server.html" target="_blank" rel="noopener">Server</a></p>
-<h3 id="Generate-static-files"><a href="#Generate-static-files" class="headerlink" title="Generate static files"></a>Generate static files</h3><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">$ hexo generate</span><br></pre></td></tr></table></figure>
+2886行求得编号，2898-2899行把新的编号作为链表头，并行链表头的项指向以前的链表头，2900减少对象使用计算。</code></pre><h2 id="cache-init-objs函数"><a href="#cache-init-objs函数" class="headerlink" title="cache_init_objs函数"></a>cache_init_objs函数</h2><pre><code>Slab块的空闲编号链表的初始化函数是cache_init_objs，在mm/slab.c中实现，代码如下：
+2809static void cache_init_objs(struct kmem_cache *cachep,
+2810                             struct slab*slabp)
+2811 {
+2812        int i;
+2813
+2814        for (i = 0; i &lt; cachep-&gt;num; i++) {
+2815                void *objp =index_to_obj(cachep, slabp, i);
+2816 #if DEBUG
+2817                 /* need to poison the objs? */
+2818                 if (cachep-&gt;flags &amp;SLAB_POISON)
+2819                         poison_obj(cachep,objp, POISON_FREE);
+2820                if (cachep-&gt;flags&amp; SLAB_STORE_USER)
+2821                         *dbg_userword(cachep,objp) = NULL;
+2822
+2823                 if (cachep-&gt;flags &amp;SLAB_RED_ZONE) {
+2824                         *dbg_redzone1(cachep,objp) = RED_INACTIVE;
+2825                        *dbg_redzone2(cachep,objp) = RED_INACTIVE;
+2826                 }
+2827                 /*
+2828                  * Constructors are notallowed to allocate memory from the same
+2829                  * cache which they are aconstructor for.  Otherwise, deadlock.
+2830                  * They must also be threaded.
+2831                  */
+2832                 if (cachep-&gt;ctor &amp;&amp;!(cachep-&gt;flags &amp; SLAB_POISON))
+2833                         cachep-&gt;ctor(objp +obj_offset(cachep));
+2834
+2835                 if (cachep-&gt;flags &amp;SLAB_RED_ZONE) {
+2836                         if(*dbg_redzone2(cachep, objp) != RED_INACTIVE)
+2837                                slab_error(cachep, &quot;constructor overwrote the&quot;
+2838                                            &quot; end of an object&quot;);
+2839                         if(*dbg_redzone1(cachep, objp) != RED_INACTIVE)
+2840                                slab_error(cachep, &quot;constructor overwrote the&quot;
+2841                                           &quot; start of an object&quot;);
+2842                 }
+2843                 if ((cachep-&gt;buffer_size %PAGE_SIZE) == 0 &amp;&amp;
+2844                             OFF_SLAB(cachep)&amp;&amp; cachep-&gt;flags &amp; SLAB_POISON)
+2845                        kernel_map_pages(virt_to_page(objp),
+2846                                         cachep-&gt;buffer_size/ PAGE_SIZE, 0);
+2847 #else
+2848                 if (cachep-&gt;ctor)
+2849                         cachep-&gt;ctor(objp);
+2850 #endif
+2851                 slab_bufctl(slabp)[i] = i + 1;
+2852        }
+2853        slab_bufctl(slabp)[i - 1] = BUFCTL_END;
+2854 }
 
-<p>More info: <a href="https://hexo.io/docs/generating.html" target="_blank" rel="noopener">Generating</a></p>
-<h3 id="Deploy-to-remote-sites"><a href="#Deploy-to-remote-sites" class="headerlink" title="Deploy to remote sites"></a>Deploy to remote sites</h3><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">$ hexo deploy</span><br></pre></td></tr></table></figure>
-
-<p>More info: <a href="https://hexo.io/docs/one-command-deployment.html" target="_blank" rel="noopener">Deployment</a></p>
-
+如果不考虑DEBUG宏，cache_init_objs函数初始化空闲编号链表，并调用了对象的构造函数。</code></pre>
       
        <hr><span style="font-style: italic;color: gray;"> 转载请注明来源，欢迎对文章中的引用来源进行考证，欢迎指出任何有错误或不够清晰的表达。可以在下面评论区评论，也可以邮件至 ancjf@163.com </span>
     </div>
@@ -495,12 +633,12 @@
 
 
 <div class="article_copyright">
-    <p><span class="copy-title">文章标题:</span>Hello World</p>
+    <p><span class="copy-title">文章标题:</span>linux 源代码分析7:Slab块的管理</p>
     
     <p><span class="copy-title">本文作者:</span><a  title="ancjf">ancjf</a></p>
-    <p><span class="copy-title">发布时间:</span>2020-03-29, 16:05:21</p>
-    <p><span class="copy-title">最后更新:</span>2020-04-18, 14:45:26</p>
-    <span class="copy-title">原始链接:</span><a class="post-url" href="/2020/03/29/hello-world/" title="Hello World">http://ancjf.com/2020/03/29/hello-world/</a>
+    <p><span class="copy-title">发布时间:</span>2013-06-05, 20:56:05</p>
+    <p><span class="copy-title">最后更新:</span>2020-04-18, 14:36:59</p>
+    <span class="copy-title">原始链接:</span><a class="post-url" href="/2013/06/05/linux-3-4-10-%E5%86%85%E6%A0%B8%E5%86%85%E5%AD%98%E7%AE%A1%E7%90%86%E6%BA%90%E4%BB%A3%E7%A0%81%E5%88%86%E6%9E%907-Slab%E5%9D%97%E7%9A%84%E7%AE%A1%E7%90%86/" title="linux 源代码分析7:Slab块的管理">http://ancjf.com/2013/06/05/linux-3-4-10-%E5%86%85%E6%A0%B8%E5%86%85%E5%AD%98%E7%AE%A1%E7%90%86%E6%BA%90%E4%BB%A3%E7%A0%81%E5%88%86%E6%9E%907-Slab%E5%9D%97%E7%9A%84%E7%AE%A1%E7%90%86/</a>
     <p>
         <span class="copy-title">版权声明:</span><i class="fa fa-creative-commons"></i> <a rel="license noopener" href="http://creativecommons.org/licenses/by-nc-sa/4.0/" target="_blank" title="CC BY-NC-SA 4.0 International" target = "_blank">"署名-非商用-相同方式共享 4.0"</a> 转载请保留原文链接及作者。
     </p>

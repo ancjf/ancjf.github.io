@@ -2,9 +2,9 @@
 <html>
 <head>
   <meta charset="utf-8">
-  <title>Hello World | 机器人的博客</title>
-  <meta name="keywords" content="">
-  <meta name="description" content="Hello World | 机器人的博客">
+  <title>linux 源代码分析8:Slab内存分配 | 机器人的博客</title>
+  <meta name="keywords" content=" linux , 内存管理 , 伙伴系统 , Slab ">
+  <meta name="description" content="linux 源代码分析8:Slab内存分配 | 机器人的博客">
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
 <meta property="og:type" content="article">
 <meta property="og:title" content="以太坊">
@@ -417,21 +417,37 @@
 </aside>
 <div class="post">
     <div class="pjax">
-        <article id="post-hello-world" class="article article-type-post" itemscope itemprop="blogPost">
+        <article id="post-linux-3-4-10-内核内存管理源代码分析8-Slab内存分配" class="article article-type-post" itemscope itemprop="blogPost">
     
-        <h1 class="article-title">Hello World</h1>
+        <h1 class="article-title">linux 源代码分析8:Slab内存分配</h1>
     
     <div class="article-meta">
         
-        <span class="top"><a>置顶</a></span>
         
         
+        <span class="book">
+            
+                <a  data-rel="linux">linux</a>
+            
+        </span>
         
+        
+        <span class="tag">
+            
+            <a class="color1">linux</a>
+            
+            <a class="color5">内存管理</a>
+            
+            <a class="color5">伙伴系统</a>
+            
+            <a class="color5">Slab</a>
+            
+        </span>
         
     </div>
     <div class="article-meta">
         
-        创建时间:<time class="date" title='更新时间: 2020-04-18 14:45:26'>2020-03-29 16:05</time>
+        创建时间:<time class="date" title='更新时间: 2020-04-18 12:08:16'>2013-06-04 19:47</time>
         
     </div>
     <div class="article-meta">
@@ -453,7 +469,7 @@
     
     <div class="toc-ref">
     
-        <ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#Quick-Start"><span class="toc-text">Quick Start</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#Create-a-new-post"><span class="toc-text">Create a new post</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#Run-server"><span class="toc-text">Run server</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#Generate-static-files"><span class="toc-text">Generate static files</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#Deploy-to-remote-sites"><span class="toc-text">Deploy to remote sites</span></a></li></ol></li></ol>
+        <ol class="toc"><li class="toc-item toc-level-1"><a class="toc-link" href="#Slab内存分配"><span class="toc-text">Slab内存分配</span></a><ol class="toc-child"><li class="toc-item toc-level-2"><a class="toc-link" href="#kmem-cache-alloc函数"><span class="toc-text">kmem_cache_alloc函数</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#cache-alloc"><span class="toc-text">__cache_alloc</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#do-cache-alloc函数"><span class="toc-text">__do_cache_alloc函数</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#cache-alloc函数"><span class="toc-text">____cache_alloc函数</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#cache-alloc-refill函数"><span class="toc-text">cache_alloc_refill函数</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#cache-grow函数"><span class="toc-text">cache_grow函数</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#kmem-getpages函数"><span class="toc-text">kmem_getpages函数</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#alloc-slabmgmt函数"><span class="toc-text">alloc_slabmgmt函数</span></a></li></ol></li></ol>
     
 <style>
     .left-col .switch-btn,
@@ -469,20 +485,373 @@
     
     <div class="article-entry" itemprop="articleBody">
       
-        <p>Welcome to <a href="https://hexo.io/" target="_blank" rel="noopener">Hexo</a>! This is your very first post. Check <a href="https://hexo.io/docs/" target="_blank" rel="noopener">documentation</a> for more info. If you get any problems when using Hexo, you can find the answer in <a href="https://hexo.io/docs/troubleshooting.html" target="_blank" rel="noopener">troubleshooting</a> or you can ask me on <a href="https://github.com/hexojs/hexo/issues" target="_blank" rel="noopener">GitHub</a>.</p>
-<h2 id="Quick-Start"><a href="#Quick-Start" class="headerlink" title="Quick Start"></a>Quick Start</h2><h3 id="Create-a-new-post"><a href="#Create-a-new-post" class="headerlink" title="Create a new post"></a>Create a new post</h3><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">$ hexo new <span class="string">"My New Post"</span></span><br></pre></td></tr></table></figure>
+        <h1 id="Slab内存分配"><a href="#Slab内存分配" class="headerlink" title="Slab内存分配"></a>Slab内存分配</h1><h2 id="kmem-cache-alloc函数"><a href="#kmem-cache-alloc函数" class="headerlink" title="kmem_cache_alloc函数"></a>kmem_cache_alloc函数</h2><pre><code>kmem_cache_alloc函数在一个特点slab缓存分配内存，在mm/slab.c中实现代码如下：
+3764 void *kmem_cache_alloc(structkmem_cache *cachep, gfp_t flags)
+3765 {
+3766        void *ret = __cache_alloc(cachep, flags, __builtin_return_address(0));
+3767
+3768        trace_kmem_cache_alloc(_RET_IP_, ret,
+3769                               obj_size(cachep), cachep-&gt;buffer_size, flags);
+3770
+3771        return ret;
+3772 }
 
-<p>More info: <a href="https://hexo.io/docs/writing.html" target="_blank" rel="noopener">Writing</a></p>
-<h3 id="Run-server"><a href="#Run-server" class="headerlink" title="Run server"></a>Run server</h3><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">$ hexo server</span><br></pre></td></tr></table></figure>
+kmem_cache_alloc函数的关键是对__cache_alloc的调用。</code></pre><h2 id="cache-alloc"><a href="#cache-alloc" class="headerlink" title="__cache_alloc"></a>__cache_alloc</h2><pre><code>__cache_alloc在mm/slab.c中实现代码如下：
+3592 static __always_inline void *
+3593 __cache_alloc(struct kmem_cache*cachep, gfp_t flags, void *caller)
+3594 {
+3595        unsigned long save_flags;
+3596        void *objp;
+3597
+3598        flags &amp;= gfp_allowed_mask;
+3599
+3600        lockdep_trace_alloc(flags);
+3601
+3602        if (slab_should_failslab(cachep, flags))
+3603        return NULL;
+3604
+3605        cache_alloc_debugcheck_before(cachep, flags);
+3606        local_irq_save(save_flags);
+3607        objp = __do_cache_alloc(cachep, flags);
+3608        local_irq_restore(save_flags);
+3609        objp = cache_alloc_debugcheck_after(cachep, flags, objp, caller);
+3610        kmemleak_alloc_recursive(objp, obj_size(cachep), 1, cachep-&gt;flags,
+3611                         flags);
+3612        prefetchw(objp);
+3613
+3614        if (likely(objp))
+3615        kmemcheck_slab_alloc(cachep,flags, objp, obj_size(cachep));
+3616
+3617        if (unlikely((flags &amp; __GFP_ZERO) &amp;&amp; objp))
+3618        memset(objp, 0,obj_size(cachep));
+3619
+3620        return objp;
+3621 }
 
-<p>More info: <a href="https://hexo.io/docs/server.html" target="_blank" rel="noopener">Server</a></p>
-<h3 id="Generate-static-files"><a href="#Generate-static-files" class="headerlink" title="Generate static files"></a>Generate static files</h3><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">$ hexo generate</span><br></pre></td></tr></table></figure>
+3606行__cache_alloc函数中关闭了中断，3607调用__do_cache_alloc函数进行分配，3608行开启中断。
+3612是预加载缓存的代码。
+3617-3618行对__GFP_ZERO选项进行了处理，就是把分配的内存块初始化为0。
+其他是关于kmemcheck和调试代码。</code></pre><h2 id="do-cache-alloc函数"><a href="#do-cache-alloc函数" class="headerlink" title="__do_cache_alloc函数"></a>__do_cache_alloc函数</h2><pre><code>__do_cache_alloc在mm/slab.c中实现代码如下：
+3584 static __always_inline void *
+3585 __do_cache_alloc(struct kmem_cache*cachep, gfp_t flags)
+3586 {
+3587        return ____cache_alloc(cachep, flags);
+3588 }
+__do_cache_alloc是直接对____cache_alloc的调用。</code></pre><h2 id="cache-alloc函数"><a href="#cache-alloc函数" class="headerlink" title="____cache_alloc函数"></a>____cache_alloc函数</h2><pre><code>____cache_alloc在mm/slab.c中实现代码如下：
+3291 static inline void*____cache_alloc(struct kmem_cache *cachep, gfp_t flags)
+3292 {
+3293        void *objp;
+3294        struct array_cache *ac;
+3295
+3296        check_irq_off();
+3297
+3298        ac = cpu_cache_get(cachep);
+3299        if (likely(ac-&gt;avail)) {
+3300        STATS_INC_ALLOCHIT(cachep);
+3301        ac-&gt;touched = 1;
+3302        objp =ac-&gt;entry[--ac-&gt;avail];
+3303        } else {
+3304        STATS_INC_ALLOCMISS(cachep);
+3305        objp =cache_alloc_refill(cachep, flags);
+3306                /*
+3307         * the &apos;ac&apos; may be updated bycache_alloc_refill(),
+3308         * and kmemleak_erase()requires its correct value.
+3309         */
+3310        ac = cpu_cache_get(cachep);
+3311        }
+3312        /*
+3313 * To avoid a false negative, if anobject that is in one of the
+3314 * per-CPU caches is leaked, we needto make sure kmemleak doesn&apos;t
+3315 * treat the array pointers as areference to the object.
+3316 */
+3317        if (objp)
+3318                kmemleak_erase(&amp;ac-&gt;entry[ac-&gt;avail]);
+3319        return objp;
+3320 }
 
-<p>More info: <a href="https://hexo.io/docs/generating.html" target="_blank" rel="noopener">Generating</a></p>
-<h3 id="Deploy-to-remote-sites"><a href="#Deploy-to-remote-sites" class="headerlink" title="Deploy to remote sites"></a>Deploy to remote sites</h3><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">$ hexo deploy</span><br></pre></td></tr></table></figure>
+____cache_alloc分两条路径进行分配，当前cpu的对象缓存不空，从当前cpu的缓存堆栈中弹出一个对象就可以了，如果缓存堆栈已经为空，要从三链表中的slab块中取出一批对象到对象缓存中，然后再从对象缓存中弹出一个对象。
+3298获得当前cpu的对象缓存。
+3300-3302行是对象缓存中不空的情况，3301行更新slab缓存堆栈的touched成员，表示slab缓存堆栈，被访问过。3302行从slab缓存堆栈弹出一个指针。
+3305是当前cpu的对象缓存为空情况，调用cache_alloc_refill函数进行分配。</code></pre><h2 id="cache-alloc-refill函数"><a href="#cache-alloc-refill函数" class="headerlink" title="cache_alloc_refill函数"></a>cache_alloc_refill函数</h2><pre><code>cache_alloc_refill是slab内存分配中比较关键的函数，在mm/slab.c中实现代码如下：
+3123 static void *cache_alloc_refill(structkmem_cache *cachep, gfp_t flags)
+3124 {
+3125        int batchcount;
+3126        struct kmem_list3 *l3;
+3127        struct array_cache *ac;
+3128        int node;
+3129
+3130 retry:
+3131        check_irq_off();
+3132        node = numa_mem_id();
+3133        ac = cpu_cache_get(cachep);
+3134        batchcount = ac-&gt;batchcount;
+3135        if (!ac-&gt;touched &amp;&amp; batchcount &gt; BATCHREFILL_LIMIT) {
+3136        /*
+3137         * If there was little recentactivity on this cache, then
+3138         * perform only a partial refill.  Otherwise we could generate
+3139         * refill bouncing.
+3140         */
+3141        batchcount =BATCHREFILL_LIMIT;
+3142        }
+3143        l3 = cachep-&gt;nodelists[node];
+3144
+3145        BUG_ON(ac-&gt;avail &gt; 0 || !l3);
+3146        spin_lock(&amp;l3-&gt;list_lock);
+3147
+3148        /* See if we can refill from the shared array */
+3149        if (l3-&gt;shared &amp;&amp; transfer_objects(ac, l3-&gt;shared,batchcount)) {
+3150        l3-&gt;shared-&gt;touched = 1;
+3151        goto alloc_done;
+3152        }
+3153
+3154        while (batchcount &gt; 0) {
+3155        struct list_head *entry;
+3156        struct slab *slabp;
+3157        /* Get slab alloc is to comefrom. */
+3158        entry =l3-&gt;slabs_partial.next;
+3159        if (entry ==&amp;l3-&gt;slabs_partial) {
+3160                l3-&gt;free_touched =1;
+3161                entry =l3-&gt;slabs_free.next;
+3162                if (entry ==&amp;l3-&gt;slabs_free)
+3163                        gotomust_grow;
+3164        }
+3165
+3166        slabp = list_entry(entry,struct slab, list);
+3167        check_slabp(cachep, slabp);
+3168        check_spinlock_acquired(cachep);
+3169
+3170        /*
+3171         * The slab was either onpartial or free list so
+3172         * there must be at least oneobject available for
+3173         * allocation.
+3174         */
+3175        BUG_ON(slabp-&gt;inuse &gt;=cachep-&gt;num);
+3176
+3177        while (slabp-&gt;inuse &lt;cachep-&gt;num &amp;&amp; batchcount--) {
+3178                        STATS_INC_ALLOCED(cachep);
+3179                        STATS_INC_ACTIVE(cachep);
+3180                        STATS_SET_HIGH(cachep);
+3181
+3182                        ac-&gt;entry[ac-&gt;avail++] = slab_get_obj(cachep, slabp,
+3183                                                            node);
+3184        }
+3185        check_slabp(cachep, slabp);
+3186
+3187        /* move slabp to correct slabplist: */
+3188        list_del(&amp;slabp-&gt;list);
+3189        if (slabp-&gt;free ==BUFCTL_END)
+3190                        list_add(&amp;slabp-&gt;list, &amp;l3-&gt;slabs_full);
+3191        else
+3192                        list_add(&amp;slabp-&gt;list, &amp;l3-&gt;slabs_partial);
+3193        }
+3194
+3195 must_grow:
+3196        l3-&gt;free_objects -= ac-&gt;avail;
+3197 alloc_done:
+3198        spin_unlock(&amp;l3-&gt;list_lock);
+3199
+3200        if (unlikely(!ac-&gt;avail)) {
+3201        int x;
+3202        x = cache_grow(cachep, flags |GFP_THISNODE, node, NULL);
+3203
+3204        /* cache_grow can reenableinterrupts, then ac could change. */
+3205        ac = cpu_cache_get(cachep);
+3206        if (!x &amp;&amp; ac-&gt;avail== 0)       /* no objects in sight? abort*/
+3207                return NULL;
+3208
+3209        if (!ac-&gt;avail)/* objects refilled by interrupt? */
+3210                goto retry;
+3211        }
+3212        ac-&gt;touched = 1;
+3213        return ac-&gt;entry[--ac-&gt;avail];
+3214 }
 
-<p>More info: <a href="https://hexo.io/docs/one-command-deployment.html" target="_blank" rel="noopener">Deployment</a></p>
+当前cpu上的缓存堆栈为空的时候，会调用cache_alloc_refill从三链表中的slab块分配一批对象到缓存堆栈。cache_alloc_refill的关键步骤是找到当前cpu所在节点的三链表，从三链表的slabs_partial或slabs_free队列中的slab块中分配内存到slab缓存堆栈。如果三链表中也没有空闲对象的时候，需要从伙伴系统分配内存。
+3132获得本地节点号
+3133行获得本cpu的缓存堆栈
+3134-3142计算一次填充的内存块数量
+3143行获得节点三链表
+3149-3152行，在三链表中包含一个共享缓存堆栈，如果三链表的共享标志位置位，则从三链表中的共享堆栈中移动一些空闲内存指针到需要填充的缓存堆栈（ac）
+3154进入一个循环，直到填充到缓存堆栈的指针数量足够
+3158-3164行从三链表中获取一个slab块，从代码中知道，会先获取三链表slabs_partial队列中的块，这样做的好处是可以尽可能的保持完全空闲的块，有利于内存回收。slabs_partial队列中的块是不完全空闲块，就是说块中有些部分已经分配出去有些还是空闲。如果slabs_partial队列为空，则会获取slabs_free队列中的slab块，如果slabs_free都为空，则跳到标号must_grow处执行，从伙伴系统分配内存。
+3177-3185行，3182-3183行调用slab_get_obj从一个slab块中分配一块内存并把返回地址压入堆栈，slab_get_obj函数中后面分析。3185行调用check_slabp函数对slab块做些检查。
+3188-3192行把slab块从三链表中原来的队列中移除，并依据slab块是否包含空闲空间加入slabs_full队列或slabs_partial队列。从代码中看到，slabp-&gt;free == BUFCTL_END时表示slab块已经不包含可以分配出去的空闲空间。
+3200-3211行，3202调用cache_grow从伙伴系统分配空间，这时候是因为缓存堆栈和三链表都不包含空闲对象。因为刚才调用cache_grow函数，slab缓存的三链表指针可以已经改变，3205行重新获取一次。3206-3207如果没有从伙伴系统申请到内存并且三链表中没有可用的内存，则返回空指针。3209如果三链表中已经有可用的内存，则重试。
+3212-3213设置缓存堆栈的访问标记，并且从堆栈中弹出指针并返回。</code></pre><h2 id="cache-grow函数"><a href="#cache-grow函数" class="headerlink" title="cache_grow函数"></a>cache_grow函数</h2><pre><code>当slab缓存的缓存内存数据不足时，也就是说缓存堆栈和三链表都不包含空闲对象时，会调用cache_grow函数，在cache_grow函数中向伙伴系统申请分配slab块，添加到三链表的空闲链表，cache_grow函数在mm/slab.c中实现代码如下：
+2931static int cache_grow(struct kmem_cache *cachep,
+2932        gfp_t flags, int nodeid, void*objp)
+2933 {
+2934        struct slab *slabp;
+2935        size_t offset;
+2936        gfp_t local_flags;
+2937        struct kmem_list3 *l3;
+2938
+2939        /*
+2940 * Be lazy and only check for validflags here,  keeping it out of the
+2941 * critical path inkmem_cache_alloc().
+2942 */
+2943        BUG_ON(flags &amp; GFP_SLAB_BUG_MASK);
+2944        local_flags = flags &amp;(GFP_CONSTRAINT_MASK|GFP_RECLAIM_MASK);
+2945
+2946        /* Take the l3 list lock to change the colour_next on this node */
+2947        check_irq_off();
+2948        l3 = cachep-&gt;nodelists[nodeid];
+2949        spin_lock(&amp;l3-&gt;list_lock);
+2950
+2951        /* Get colour for the slab, and cal the next value. */
+2952        offset = l3-&gt;colour_next;
+2953        l3-&gt;colour_next++;
+2954        if (l3-&gt;colour_next &gt;= cachep-&gt;colour)
+2955        l3-&gt;colour_next = 0;
+2956         spin_unlock(&amp;l3-&gt;list_lock);
+2957
+2958        offset *= cachep-&gt;colour_off;
+2959
+2960        if (local_flags &amp; __GFP_WAIT)
+2961        local_irq_enable();
+2962
+2963        /*
+2964 * The test for missing atomic flag isperformed here, rather than
+2965 * the more obvious place, simply toreduce the critical path length
+2966 * in kmem_cache_alloc(). If a calleris seriously mis-behaving they
+2967 * will eventually be caught here(where it matters).
+2968 */
+2969        kmem_flagcheck(cachep, flags);
+2970
+2971        /*
+2972 * Get mem for the objs.  Attempt to allocate a physical page from
+2973 * &apos;nodeid&apos;.
+2974 */
+2975        if (!objp)
+2976        objp = kmem_getpages(cachep,local_flags, nodeid);
+2977        if (!objp)
+2978        goto failed;
+2979
+2980        /* Get slab management. */
+2981        slabp = alloc_slabmgmt(cachep, objp, offset,
+2982                local_flags &amp;~GFP_CONSTRAINT_MASK, nodeid);
+2983        if (!slabp)
+2984        goto opps1;
+2985
+2986        slab_map_pages(cachep, slabp, objp);
+2987
+2988        cache_init_objs(cachep, slabp);
+2989
+2990        if (local_flags &amp; __GFP_WAIT)
+2991        local_irq_disable();
+2992        check_irq_off();
+2993        spin_lock(&amp;l3-&gt;list_lock);
+2994
+2995        /* Make slab active. */
+2996        list_add_tail(&amp;slabp-&gt;list, &amp;(l3-&gt;slabs_free));
+2997        STATS_INC_GROWN(cachep);
+2998        l3-&gt;free_objects += cachep-&gt;num;
+2999        spin_unlock(&amp;l3-&gt;list_lock);
+3000        return 1;
+3001 opps1:
+3002        kmem_freepages(cachep, objp);
+3003 failed:
+3004        if (local_flags &amp; __GFP_WAIT)
+3005        local_irq_disable();
+3006        return 0;
+3007 }
 
+cache_grow函数实现从伙伴系统分配内存，有三个比较重要的步骤，计算颜色偏移量，从伙伴系统分配内存块，构建slab块的控制数据。
+2952-2958行的代码是对颜色的计算。
+2975-2976行，如果传进的地址为空，则分配一块内存。这里节点号是由上层函数传进来的，在cache_alloc_refill-&gt;cache_grow的调用流程中，节点号的由numa_mem_id()函数返回，也就是正运行这段代码的cpu所在的节点的号码。
+2981行是计算slab块的控制数据存放地址，控制数据存放地址有两种情况，一种是直接放在刚才申请到的内存块中，另外一种方法是另外申请一块内存来存放控制数据。
+2981行调用函数slab_map_pages设置struct page的slab数据，这样可以根据逻辑地址管理找到管理这个逻辑地址的struct kmem_cache地址和struct slab地址（kfree函数中需要根据地址找到structkmem_cache地址），一页数据属于slab的时候，lru链表是没有作用的，正好把lru链表的next用来保存struct kmem_cache的地址，prev用来保struct slab地址。
+2988行调用cache_init_objs初始化salb块的空闲编号列表。
+2996行把slab块加入三链表的空闲链表。
+2998行更新空闲对象计数。</code></pre><h2 id="kmem-getpages函数"><a href="#kmem-getpages函数" class="headerlink" title="kmem_getpages函数"></a>kmem_getpages函数</h2><pre><code>kmem_getpages在mm/slab.c中实现代码如下：
+1787static void *kmem_getpages(struct kmem_cache *cachep, gfp_t flags, int nodeid)
+1788 {
+1789        struct page *page;
+1790        int nr_pages;
+1791        int i;
+1792
+1793 #ifndef CONFIG_MMU
+1794        /*
+1795 * Nommu uses slab&apos;s for processanonymous memory allocations, and thus
+1796 * requires __GFP_COMP to properlyrefcount higher order allocations
+1797 */
+1798        flags |= __GFP_COMP;
+1799 #endif
+1800
+1801        flags |= cachep-&gt;gfpflags;
+1802        if (cachep-&gt;flags &amp; SLAB_RECLAIM_ACCOUNT)
+1803        flags |= __GFP_RECLAIMABLE;
+1804
+1805        page = alloc_pages_exact_node(nodeid, flags | __GFP_NOTRACK,cachep-&gt;gfporder);
+1806        if (!page) {
+1807        if (!(flags &amp;__GFP_NOWARN) &amp;&amp; printk_ratelimit())
+1808                        slab_out_of_memory(cachep, flags, nodeid);
+1809        return NULL;
+1810        }
+1811
+1812        nr_pages = (1 &lt;&lt; cachep-&gt;gfporder);
+1813        if (cachep-&gt;flags &amp; SLAB_RECLAIM_ACCOUNT)
+1814                add_zone_page_state(page_zone(page),
+1815                NR_SLAB_RECLAIMABLE,nr_pages);
+1816        else
+1817                add_zone_page_state(page_zone(page),
+1818                NR_SLAB_UNRECLAIMABLE,nr_pages);
+1819        for (i = 0; i &lt; nr_pages; i++)
+1820        __SetPageSlab(page + i);
+1821
+1822        if (kmemcheck_enabled &amp;&amp; !(cachep-&gt;flags &amp; SLAB_NOTRACK)){
+1823        kmemcheck_alloc_shadow(page,cachep-&gt;gfporder, flags, nodeid);
+1824
+1825        if (cachep-&gt;ctor)
+1826                kmemcheck_mark_uninitialized_pages(page,nr_pages);
+1827        else
+1828                        kmemcheck_mark_unallocated_pages(page, nr_pages);
+1829        }
+1830
+1831        return page_address(page);
+1832 }
+
+Slab向伙伴系统申请内存工作真正是在kmem_getpages函数中完成的。
+1805行调用alloc_pages_exact_node函数向伙伴系统申请内存。alloc_pages_exact_node是伙伴系统在一个特定节点中分配内存的函数。
+1831行根据page结构转换为逻辑地址返回。</code></pre><h2 id="alloc-slabmgmt函数"><a href="#alloc-slabmgmt函数" class="headerlink" title="alloc_slabmgmt函数"></a>alloc_slabmgmt函数</h2><pre><code>slab块，也就是slab从伙伴申请分配到的块，由结构structslab描述，一slab块个struct slab存放在哪里呢？structslab的存放地址是由alloc_slabmgmt函数求得的，alloc_slabmgmt在mm/slab.c中实现代码如下：
+2772 static struct slab*alloc_slabmgmt(struct kmem_cache *cachep, void *objp,
+2773                           intcolour_off, gfp_t local_flags,
+2774                           int nodeid)
+2775 {
+2776        struct slab *slabp;
+2777
+2778        if (OFF_SLAB(cachep)) {
+2779        /* Slab management obj isoff-slab. */
+2780        slabp =kmem_cache_alloc_node(cachep-&gt;slabp_cache,
+2781                                              local_flags, nodeid);
+2782        /*
+2783         * If the first object in theslab is leaked (it&apos;s allocated
+2784         * but no one has a referenceto it), we want to make sure
+2785         * kmemleak does not treat the-&gt;s_mem pointer as a reference
+2786         * to the object. Otherwise wewill not report the leak.
+2787         */
+2788                kmemleak_scan_area(&amp;slabp-&gt;list, sizeof(struct list_head),
+2789                                   local_flags);
+2790        if (!slabp)
+2791                return NULL;
+2792        } else {
+2793        slabp = objp + colour_off;
+2794        colour_off +=cachep-&gt;slab_size;
+2795        }
+2796        slabp-&gt;inuse = 0;
+2797        slabp-&gt;colouroff = colour_off;
+2798        slabp-&gt;s_mem = objp + colour_off;
+2799        slabp-&gt;nodeid = nodeid;
+2800        slabp-&gt;free = 0;
+2801        return slabp;
+2802 }
+
+OFF_SLAB宏定义如下：
+361 #defineOFF_SLAB (x)     ((x)-&gt;flags &amp;CFLGS_OFF_SLAB)
+这样根据OFF_SLAB宏的返回值，如果structkmem_cache的成员flags的标志位是否设置CFLGS_OFF_SLAB来区分，struct slab是存放在从伙伴系统已经分配的块中还是另外申请空间用来存放struct slab结构。
+2780行是申请单独的空间用来存放struct slab的情况，空间分配是调用kmem_cache_alloc_node函数实现的，在struct kmem_cache结构成员slabp_cache执行的slab缓存中分配。
+2793-2794行struct slab是存放在slab块偏移colour_off处，为什么不存放在slab的开头？因为struct slab也可能被缓存，存放在偏移colour_off处比存放在slab块开头处发生缓存冲突的可能性小些。
+2978行，综合2974行，slabp-&gt;s_mem的值是objp+cachep-&gt;slab_size。cachep-&gt;slab_size是缓存的slab的控制数据的总的长度，包含struct slab和空闲编号链表和对其因素。cachep-&gt;slab_size的值在kmem_cache_create中计算。</code></pre>
       
        <hr><span style="font-style: italic;color: gray;"> 转载请注明来源，欢迎对文章中的引用来源进行考证，欢迎指出任何有错误或不够清晰的表达。可以在下面评论区评论，也可以邮件至 ancjf@163.com </span>
     </div>
@@ -495,12 +864,12 @@
 
 
 <div class="article_copyright">
-    <p><span class="copy-title">文章标题:</span>Hello World</p>
+    <p><span class="copy-title">文章标题:</span>linux 源代码分析8:Slab内存分配</p>
     
     <p><span class="copy-title">本文作者:</span><a  title="ancjf">ancjf</a></p>
-    <p><span class="copy-title">发布时间:</span>2020-03-29, 16:05:21</p>
-    <p><span class="copy-title">最后更新:</span>2020-04-18, 14:45:26</p>
-    <span class="copy-title">原始链接:</span><a class="post-url" href="/2020/03/29/hello-world/" title="Hello World">http://ancjf.com/2020/03/29/hello-world/</a>
+    <p><span class="copy-title">发布时间:</span>2013-06-04, 19:47:29</p>
+    <p><span class="copy-title">最后更新:</span>2020-04-18, 12:08:16</p>
+    <span class="copy-title">原始链接:</span><a class="post-url" href="/2013/06/04/linux-3-4-10-%E5%86%85%E6%A0%B8%E5%86%85%E5%AD%98%E7%AE%A1%E7%90%86%E6%BA%90%E4%BB%A3%E7%A0%81%E5%88%86%E6%9E%908-Slab%E5%86%85%E5%AD%98%E5%88%86%E9%85%8D/" title="linux 源代码分析8:Slab内存分配">http://ancjf.com/2013/06/04/linux-3-4-10-%E5%86%85%E6%A0%B8%E5%86%85%E5%AD%98%E7%AE%A1%E7%90%86%E6%BA%90%E4%BB%A3%E7%A0%81%E5%88%86%E6%9E%908-Slab%E5%86%85%E5%AD%98%E5%88%86%E9%85%8D/</a>
     <p>
         <span class="copy-title">版权声明:</span><i class="fa fa-creative-commons"></i> <a rel="license noopener" href="http://creativecommons.org/licenses/by-nc-sa/4.0/" target="_blank" title="CC BY-NC-SA 4.0 International" target = "_blank">"署名-非商用-相同方式共享 4.0"</a> 转载请保留原文链接及作者。
     </p>

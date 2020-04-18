@@ -2,9 +2,9 @@
 <html>
 <head>
   <meta charset="utf-8">
-  <title>Hello World | 机器人的博客</title>
-  <meta name="keywords" content="">
-  <meta name="description" content="Hello World | 机器人的博客">
+  <title>linux 源代码分析11:Slab初始化 | 机器人的博客</title>
+  <meta name="keywords" content=" linux , 内存管理 , 伙伴系统 , Slab ">
+  <meta name="description" content="linux 源代码分析11:Slab初始化 | 机器人的博客">
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
 <meta property="og:type" content="article">
 <meta property="og:title" content="以太坊">
@@ -417,21 +417,37 @@
 </aside>
 <div class="post">
     <div class="pjax">
-        <article id="post-hello-world" class="article article-type-post" itemscope itemprop="blogPost">
+        <article id="post-linux-3-4-10-内核内存管理源代码分析11-Slab初始化" class="article article-type-post" itemscope itemprop="blogPost">
     
-        <h1 class="article-title">Hello World</h1>
+        <h1 class="article-title">linux 源代码分析11:Slab初始化</h1>
     
     <div class="article-meta">
         
-        <span class="top"><a>置顶</a></span>
         
         
+        <span class="book">
+            
+                <a  data-rel="linux">linux</a>
+            
+        </span>
         
+        
+        <span class="tag">
+            
+            <a class="color1">linux</a>
+            
+            <a class="color5">内存管理</a>
+            
+            <a class="color5">伙伴系统</a>
+            
+            <a class="color5">Slab</a>
+            
+        </span>
         
     </div>
     <div class="article-meta">
         
-        创建时间:<time class="date" title='更新时间: 2020-04-18 14:45:26'>2020-03-29 16:05</time>
+        创建时间:<time class="date" title='更新时间: 2020-04-18 12:08:41'>2013-06-12 19:43</time>
         
     </div>
     <div class="article-meta">
@@ -453,7 +469,7 @@
     
     <div class="toc-ref">
     
-        <ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#Quick-Start"><span class="toc-text">Quick Start</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#Create-a-new-post"><span class="toc-text">Create a new post</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#Run-server"><span class="toc-text">Run server</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#Generate-static-files"><span class="toc-text">Generate static files</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#Deploy-to-remote-sites"><span class="toc-text">Deploy to remote sites</span></a></li></ol></li></ol>
+        <ol class="toc"><li class="toc-item toc-level-1"><a class="toc-link" href="#Slab初始化"><span class="toc-text">Slab初始化</span></a><ol class="toc-child"><li class="toc-item toc-level-2"><a class="toc-link" href="#kmem-cache-init函数"><span class="toc-text">kmem_cache_init函数</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#setup-cpu-cache函数"><span class="toc-text">setup_cpu_cache函数</span></a></li></ol></li></ol>
     
 <style>
     .left-col .switch-btn,
@@ -469,20 +485,257 @@
     
     <div class="article-entry" itemprop="articleBody">
       
-        <p>Welcome to <a href="https://hexo.io/" target="_blank" rel="noopener">Hexo</a>! This is your very first post. Check <a href="https://hexo.io/docs/" target="_blank" rel="noopener">documentation</a> for more info. If you get any problems when using Hexo, you can find the answer in <a href="https://hexo.io/docs/troubleshooting.html" target="_blank" rel="noopener">troubleshooting</a> or you can ask me on <a href="https://github.com/hexojs/hexo/issues" target="_blank" rel="noopener">GitHub</a>.</p>
-<h2 id="Quick-Start"><a href="#Quick-Start" class="headerlink" title="Quick Start"></a>Quick Start</h2><h3 id="Create-a-new-post"><a href="#Create-a-new-post" class="headerlink" title="Create a new post"></a>Create a new post</h3><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">$ hexo new <span class="string">"My New Post"</span></span><br></pre></td></tr></table></figure>
+        <h1 id="Slab初始化"><a href="#Slab初始化" class="headerlink" title="Slab初始化"></a>Slab初始化</h1><pre><code>Slab的初始化由kmem_cache_init和kmem_cache_init_late两个函数完成kmem_cache_init_late在init/main.c:start_kernel中调用。kmem_cache_init的调用路径是：start_kernel-&gt;mm_init_owner-&gt;mm_init-&gt;kmem_cache_init。</code></pre><h2 id="kmem-cache-init函数"><a href="#kmem-cache-init函数" class="headerlink" title="kmem_cache_init函数"></a>kmem_cache_init函数</h2><pre><code>1497 void __init kmem_cache_init(void)
+1498 {
+1499        size_t left_over;
+1500        struct cache_sizes *sizes;
+1501        struct cache_names *names;
+1502        int i;
+1503        int order;
+1504        int node;
+1505
+1506        if (num_possible_nodes() == 1)
+1507                 use_alien_caches = 0;
+1508
+1509        for (i = 0; i &lt; NUM_INIT_LISTS; i++) {
+1510                kmem_list3_init(&amp;initkmem_list3[i]);
+1511                 if (i &lt; MAX_NUMNODES)
+1512                        cache_cache.nodelists[i] = NULL;
+1513        }
+1514        set_up_list3s(&amp;cache_cache, CACHE_CACHE);
+1515
+1516        /*
+1517         * Fragmentation resistance onlow memory - only use bigger
+1518          * page orders on machines with morethan 32MB of memory if
+1519          * not overridden on the command line.
+1520          */
+1521        if (!slab_max_order_set &amp;&amp; totalram_pages &gt; (32 &lt;&lt; 20)&gt;&gt; PAGE_SHIFT)
+1522                 slab_max_order =SLAB_MAX_ORDER_HI;
+1523
+1524        /* Bootstrap is tricky, because several objects are allocated
+1525          * from caches that do not exist yet:
+1526          * 1) initialize the cache_cachecache: it contains the struct
+1527          *   kmem_cache structures of all caches, except cache_cache itself:
+1528          *   cache_cache is statically allocated.
+1529          *   Initially an __init data area is used for the head array and the
+1530          *   kmem_list3 structures, it&apos;s replaced with a kmalloc allocated
+1531          *   array at the end of the bootstrap.
+1532          * 2) Create the first kmalloc cache.
+1533          *   The struct kmem_cache for the new cache is allocated normally.
+1534          *   An __init data area is used for the head array.
+1535          * 3) Create the remaining kmalloccaches, with minimally sized
+1536          *   head arrays.
+1537          * 4) Replace the __init data headarrays for cache_cache and the first
+1538          *   kmalloc cache with kmalloc allocated arrays.
+1539          * 5) Replace the __init data forkmem_list3 for cache_cache and
+1540          *   the other cache&apos;s with kmalloc allocated memory.
+1541          * 6) Resize the head arrays of thekmalloc caches to their final sizes.
+1542          */
+1543
+1544        node = numa_mem_id();
+1545
+1546        /* 1) create the cache_cache */
+1547        INIT_LIST_HEAD(&amp;cache_chain);
+1548        list_add(&amp;cache_cache.next, &amp;cache_chain);
+1549        cache_cache.colour_off = cache_line_size();
+1550        cache_cache.array[smp_processor_id()] = &amp;initarray_cache.cache;
+1551        cache_cache.nodelists[node] = &amp;initkmem_list3[CACHE_CACHE + node];
+1552
+1553        /*
+1554          * struct kmem_cache size depends onnr_node_ids &amp; nr_cpu_ids
+1555          */
+1556        cache_cache.buffer_size = offsetof(struct kmem_cache, array[nr_cpu_ids])+
+1557                                   nr_node_ids* sizeof(struct kmem_list3 *);
+1558 #if DEBUG
+1559        cache_cache.obj_size = cache_cache.buffer_size;
+1560 #endif
+1561        cache_cache.buffer_size = ALIGN(cache_cache.buffer_size,
+1562                                        cache_line_size());
+1563        cache_cache.reciprocal_buffer_size =
+1564                reciprocal_value(cache_cache.buffer_size);
+1565
+1566        for (order = 0; order &lt; MAX_ORDER; order++) {
+1567                 cache_estimate(order,cache_cache.buffer_size,
+1568                         cache_line_size(), 0,&amp;left_over, &amp;cache_cache.num);
+1569                 if (cache_cache.num)
+1570                         break;
+1571        }
+1572        BUG_ON(!cache_cache.num);
+1573        cache_cache.gfporder = order;
+1574        cache_cache.colour = left_over / cache_cache.colour_off;
+1575        cache_cache.slab_size = ALIGN(cache_cache.num * sizeof(kmem_bufctl_t) +
+1576                                      sizeof(struct slab), cache_line_size());
+1577
+1578        /* 2+3) create the kmalloc caches */
+1579        sizes = malloc_sizes;
+1580        names = cache_names;
+1581
+1582        /*
+1583          * Initialize the caches that providememory for the array cache and the
+1584          * kmem_list3 structures first.  Without this, further allocations will
+1585          * bug.
+1586          */
+1587
+1588        sizes[INDEX_AC].cs_cachep = kmem_cache_create(names[INDEX_AC].name,
+1589                                        sizes[INDEX_AC].cs_size,
+1590                                        ARCH_KMALLOC_MINALIGN,
+1591                                        ARCH_KMALLOC_FLAGS|SLAB_PANIC,
+1592                                         NULL);
+1593
+1594        if (INDEX_AC != INDEX_L3) {
+1595                 sizes[INDEX_L3].cs_cachep =
+1596                         kmem_cache_create(names[INDEX_L3].name,
+1597                                sizes[INDEX_L3].cs_size,
+1598                                ARCH_KMALLOC_MINALIGN,
+1599                                ARCH_KMALLOC_FLAGS|SLAB_PANIC,
+1600                                 NULL);
+1601        }
+1602
+1603        slab_early_init = 0;
+1604
+1605        while (sizes-&gt;cs_size != ULONG_MAX) {
+1606                 /*
+1607                  * For performance, all thegeneral caches are L1 aligned.
+1608                 * This should beparticularly beneficial on SMP boxes, as it
+1609                  * eliminates &quot;falsesharing&quot;.
+1610                  * Note for systems short onmemory removing the alignment will
+1611                  * allow tighter packing ofthe smaller caches.
+1612                  */
+1613                 if (!sizes-&gt;cs_cachep) {
+1614                         sizes-&gt;cs_cachep =kmem_cache_create(names-&gt;name,
+1615                                        sizes-&gt;cs_size,
+1616                                         ARCH_KMALLOC_MINALIGN,
+1617                                        ARCH_KMALLOC_FLAGS|SLAB_PANIC,
+1618                                         NULL);
+1619                 }
+1620 #ifdef CONFIG_ZONE_DMA
+1621                 sizes-&gt;cs_dmacachep =kmem_cache_create(
+1622                                        names-&gt;name_dma,
+1623                                        sizes-&gt;cs_size,
+1624                                        ARCH_KMALLOC_MINALIGN,
+1625                                         ARCH_KMALLOC_FLAGS|SLAB_CACHE_DMA|
+1626                                                SLAB_PANIC,
+1627                                         NULL);
+1628 #endif
+1629                 sizes++;
+1630                 names++;
+1631        }
+1632        /* 4) Replace the bootstraphead arrays */
+1633        {
+1634                 struct array_cache *ptr;
+1635
+1636                 ptr = kmalloc(sizeof(structarraycache_init), GFP_NOWAIT);
+1637
+1638                BUG_ON(cpu_cache_get(&amp;cache_cache) != &amp;initarray_cache.cache);
+1639                 memcpy(ptr,cpu_cache_get(&amp;cache_cache),
+1640                        sizeof(structarraycache_init));
+1641                 /*
+1642                  * Do not assume thatspinlocks can be initialized via memcpy:
+1643                  */
+1644                spin_lock_init(&amp;ptr-&gt;lock);
+1645
+1646                cache_cache.array[smp_processor_id()] = ptr;
+1647
+1648                 ptr = kmalloc(sizeof(structarraycache_init), GFP_NOWAIT);
+1649
+1650                 BUG_ON(cpu_cache_get(malloc_sizes[INDEX_AC].cs_cachep)
+1651                        !=&amp;initarray_generic.cache);
+1652                 memcpy(ptr,cpu_cache_get(malloc_sizes[INDEX_AC].cs_cachep),
+1653                        sizeof(structarraycache_init));
+1654                 /*
+1655                  * Do not assume thatspinlocks can be initialized via memcpy:
+1656                  */
+1657                spin_lock_init(&amp;ptr-&gt;lock);
+1658
+1659                malloc_sizes[INDEX_AC].cs_cachep-&gt;array[smp_processor_id()] =
+1660                     ptr;
+1661        }
+1662        /* 5) Replace the bootstrap kmem_list3&apos;s */
+1663        {
+1664                 int nid;
+1665
+1666                 for_each_online_node(nid) {
+1667                         init_list(&amp;cache_cache,&amp;initkmem_list3[CACHE_CACHE + nid], nid);
+1668
+1669                        init_list(malloc_sizes[INDEX_AC].cs_cachep,
+1670                                  &amp;initkmem_list3[SIZE_AC + nid], nid);
+1671
+1672                         if (INDEX_AC !=INDEX_L3) {
+1673                                init_list(malloc_sizes[INDEX_L3].cs_cachep,
+1674                                          &amp;initkmem_list3[SIZE_L3 + nid], nid);
+1675                         }
+1676                 }
+1677        }
+1678
+1679        g_cpucache_up = EARLY;
+1680 }
 
-<p>More info: <a href="https://hexo.io/docs/writing.html" target="_blank" rel="noopener">Writing</a></p>
-<h3 id="Run-server"><a href="#Run-server" class="headerlink" title="Run server"></a>Run server</h3><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">$ hexo server</span><br></pre></td></tr></table></figure>
+kmem_cache_init函数的实质工作是创建一系列的slab缓存，这里包含用来分配structkmem_cache结构的缓存和通用长度缓存。关键问题是创建缓存时需要分配内存，这些内存从哪里分配呢？如果直接从伙伴系统分配，因为伙伴系统只能分配若干页，这样会造成浪费，还有一个方法就是静态分配，在系统中定义了四个有个slab的静态变量cache_cache，initkmem_list3，initarray_generic和initarray_cache。initkmem_list3定义了足以包含3个三链表数组的空间。
+创建slab缓存要为struct kmem_cache结构，三链表数组和对象缓存数组分配空间。struct kmem_cache，三链表数组和对象缓存数组都是从一个slab缓存中分配空间。问题是刚开始的时候没有任何slab缓存，那这些结构的空间是从哪里来的？实际上创建第一个slab缓存的时候所有这些结构都是静态分配空间的，实际上第一个创建的是分配struct kmem_cache的slab缓存，这个slab缓存的struct kmem_cache结构用的是全局结构cache_cache，三链表使用的是initkmem_list3中的空间，对象缓存数组使用的是initarray_cache的空间。这个时候g_cpucache_up变量的值是NONE，第二个创建的是为对象缓存分配空间的slab缓存，这个时候为struct kmem_cache结构分配空间的slab缓存以及创建好，对象缓存数组使用的是initarray_generic，三链表使用的是initkmem_list3中从索引SIZE_AC开始的一段，创建第二个slab缓存的时候g_cpucache_up == NONE成立。第三个创建的是用来分配三链表数组分配空间的slab缓存，这个时候用来分配对象缓存的slab已经创建好了，但这个时候要考虑一直情况，就是如果分配三链表数组和对象缓存数组的是在同一个slab缓存，这时候三链表也可以直接从slab中分配了，如果分配三链表数组和对象缓存数组的不是在同一个slab缓存中，则第三个创建的slab缓存的三链表是以SIZE_L3为索引使用initkmem_list3的空间。
+kmem_cache_init函数的代码分成5段来读
+第一段：1499-1577。1514行可以看出对第零个创建的缓存的三链表初始化是以CACHE_CACHE为下标占用initkmem_list3的一段，1550行表明缓存堆栈数组是指向全局变量initarray_cache，其他对全局量cache_cache的初始化和kmem_cache_create函数大同小异。
+第二段：1579-1604。第二段的任务是创建为缓存堆栈分配空间的缓存和为三链表分配内存的缓存，1594行的判断条件就是分配缓存堆栈空间和分配三链表空间的缓存是同一个的情况。
+第三段：1605-1631。这一段是创建通用长度缓存。
+第四段：1633-1661。这一段的工作从slab系统中分配内存替换掉刚才临时使用的全局对象缓存数组。
+第五段：1663-1677。这一段的工作从slab系统中分配内存替换掉刚才临时使用的全局三链表数组。</code></pre><h2 id="setup-cpu-cache函数"><a href="#setup-cpu-cache函数" class="headerlink" title="setup_cpu_cache函数"></a>setup_cpu_cache函数</h2><pre><code>setup_cpu_cache函数是在mm/slab.c中实现代码如下：
+2195 static int __init_refoksetup_cpu_cache(struct kmem_cache *cachep, gfp_t gfp)
+2196 {
+2197        if (g_cpucache_up == FULL)
+2198                 return enable_cpucache(cachep,gfp);
+2199
+2200        if (g_cpucache_up == NONE) {
+2201                 /*
+2202                  * Note: the first kmem_cache_createmust create the cache
+2203                  * that&apos;s used by kmalloc(24),otherwise the creation of
+2204                  * further caches will BUG().
+2205                  */
+2206                cachep-&gt;array[smp_processor_id()] = &amp;initarray_generic.cache;
+2207
+2208                 /*
+2209                  * If the cache that&apos;s used bykmalloc(sizeof(kmem_list3)) is
+2210                  * the first cache, then weneed to set up all its list3s,
+2211                  * otherwise the creation offurther caches will BUG().
+2212                  */
+2213                 set_up_list3s(cachep,SIZE_AC);
+2214                 if (INDEX_AC == INDEX_L3)
+2215                         g_cpucache_up =PARTIAL_L3;
+2216                 else
+2217                         g_cpucache_up = PARTIAL_AC;
+2218        } else {
+2219                cachep-&gt;array[smp_processor_id()] =
+2220                         kmalloc(sizeof(structarraycache_init), gfp);
+2221
+2222                 if (g_cpucache_up ==PARTIAL_AC) {
+2223                         set_up_list3s(cachep,SIZE_L3);
+2224                         g_cpucache_up =PARTIAL_L3;
+2225                 } else {
+2226                         int node;
+2227                        for_each_online_node(node) {
+2228                                cachep-&gt;nodelists[node]=
+2229                                    kmalloc_node(sizeof(struct kmem_list3),
+2230                                                gfp, node);
+2231                                BUG_ON(!cachep-&gt;nodelists[node]);
+2232                                kmem_list3_init(cachep-&gt;nodelists[node]);
+2233                         }
+2234                 }
+2235        }
+2236        cachep-&gt;nodelists[numa_mem_id()]-&gt;next_reap =
+2237                         jiffies +REAPTIMEOUT_LIST3 +
+2238                         ((unsignedlong)cachep) % REAPTIMEOUT_LIST3;
+2239
+2240        cpu_cache_get(cachep)-&gt;avail = 0;
+2241        cpu_cache_get(cachep)-&gt;limit = BOOT_CPUCACHE_ENTRIES;
+2242        cpu_cache_get(cachep)-&gt;batchcount = 1;
+2243        cpu_cache_get(cachep)-&gt;touched = 0;
+2244        cachep-&gt;batchcount = 1;
+2245        cachep-&gt;limit = BOOT_CPUCACHE_ENTRIES;
+2246        return 0;
+2247 }
 
-<p>More info: <a href="https://hexo.io/docs/server.html" target="_blank" rel="noopener">Server</a></p>
-<h3 id="Generate-static-files"><a href="#Generate-static-files" class="headerlink" title="Generate static files"></a>Generate static files</h3><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">$ hexo generate</span><br></pre></td></tr></table></figure>
-
-<p>More info: <a href="https://hexo.io/docs/generating.html" target="_blank" rel="noopener">Generating</a></p>
-<h3 id="Deploy-to-remote-sites"><a href="#Deploy-to-remote-sites" class="headerlink" title="Deploy to remote sites"></a>Deploy to remote sites</h3><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">$ hexo deploy</span><br></pre></td></tr></table></figure>
-
-<p>More info: <a href="https://hexo.io/docs/one-command-deployment.html" target="_blank" rel="noopener">Deployment</a></p>
-
+setup_cpu_cache函数是在kmem_cache_create函数中调用的，函数的功能是设置缓存的缓存堆栈和三链表结构。setup_cpu_cache函数根据变量g_cpucache_up不同的值有不同的设置方法。g_cpucache_up变量的取值是g_cpucache_up变量的值之一，在创建kmem_cache缓存的时候g_cpucache_up的值为NONE，在创建堆栈缓存的时候g_cpucache_up的值为SIZE_AC，在创建三链表缓存的时候g_cpucache_up的值为PARTIAL_L3。
+2200-2218行是创建堆栈缓存时的处理代码，从这段代码可以看出，堆栈缓存的对象缓存初始化时使用的是initarray_generic的空间，三链表是以SIZE_AC为下标initkmem_list3中的空间，这从2213行代码可以看出来。2214-2217行知道如果堆栈缓存和三链表缓存是同一个缓存，这时候直接把g_cpucache_up置为PARTIAL_L3，因为这时候三链表也可以从slab中分配了。
+2218-2235行，这是创建三链表堆栈的处理代码。2219-2220行，因为堆栈缓存以及创建好，这时候缓存堆栈的空间可以从slab中分配了。三链表的分配要看三链表和堆栈缓存是不是同一个，不是还有借用静态变量initkmem_list3的空间，是则可以直接在slab中分配空间了。
+2236-2246是对一些变量的初始化。</code></pre>
       
        <hr><span style="font-style: italic;color: gray;"> 转载请注明来源，欢迎对文章中的引用来源进行考证，欢迎指出任何有错误或不够清晰的表达。可以在下面评论区评论，也可以邮件至 ancjf@163.com </span>
     </div>
@@ -495,12 +748,12 @@
 
 
 <div class="article_copyright">
-    <p><span class="copy-title">文章标题:</span>Hello World</p>
+    <p><span class="copy-title">文章标题:</span>linux 源代码分析11:Slab初始化</p>
     
     <p><span class="copy-title">本文作者:</span><a  title="ancjf">ancjf</a></p>
-    <p><span class="copy-title">发布时间:</span>2020-03-29, 16:05:21</p>
-    <p><span class="copy-title">最后更新:</span>2020-04-18, 14:45:26</p>
-    <span class="copy-title">原始链接:</span><a class="post-url" href="/2020/03/29/hello-world/" title="Hello World">http://ancjf.com/2020/03/29/hello-world/</a>
+    <p><span class="copy-title">发布时间:</span>2013-06-12, 19:43:06</p>
+    <p><span class="copy-title">最后更新:</span>2020-04-18, 12:08:41</p>
+    <span class="copy-title">原始链接:</span><a class="post-url" href="/2013/06/12/linux-3-4-10-%E5%86%85%E6%A0%B8%E5%86%85%E5%AD%98%E7%AE%A1%E7%90%86%E6%BA%90%E4%BB%A3%E7%A0%81%E5%88%86%E6%9E%9011-Slab%E5%88%9D%E5%A7%8B%E5%8C%96/" title="linux 源代码分析11:Slab初始化">http://ancjf.com/2013/06/12/linux-3-4-10-%E5%86%85%E6%A0%B8%E5%86%85%E5%AD%98%E7%AE%A1%E7%90%86%E6%BA%90%E4%BB%A3%E7%A0%81%E5%88%86%E6%9E%9011-Slab%E5%88%9D%E5%A7%8B%E5%8C%96/</a>
     <p>
         <span class="copy-title">版权声明:</span><i class="fa fa-creative-commons"></i> <a rel="license noopener" href="http://creativecommons.org/licenses/by-nc-sa/4.0/" target="_blank" title="CC BY-NC-SA 4.0 International" target = "_blank">"署名-非商用-相同方式共享 4.0"</a> 转载请保留原文链接及作者。
     </p>

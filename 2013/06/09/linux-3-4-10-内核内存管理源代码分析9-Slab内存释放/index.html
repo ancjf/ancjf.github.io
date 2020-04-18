@@ -2,9 +2,9 @@
 <html>
 <head>
   <meta charset="utf-8">
-  <title>Hello World | 机器人的博客</title>
-  <meta name="keywords" content="">
-  <meta name="description" content="Hello World | 机器人的博客">
+  <title>linux 源代码分析9:Slab内存释放 | 机器人的博客</title>
+  <meta name="keywords" content=" linux , 内存管理 , 伙伴系统 , Slab ">
+  <meta name="description" content="linux 源代码分析9:Slab内存释放 | 机器人的博客">
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
 <meta property="og:type" content="article">
 <meta property="og:title" content="以太坊">
@@ -417,21 +417,37 @@
 </aside>
 <div class="post">
     <div class="pjax">
-        <article id="post-hello-world" class="article article-type-post" itemscope itemprop="blogPost">
+        <article id="post-linux-3-4-10-内核内存管理源代码分析9-Slab内存释放" class="article article-type-post" itemscope itemprop="blogPost">
     
-        <h1 class="article-title">Hello World</h1>
+        <h1 class="article-title">linux 源代码分析9:Slab内存释放</h1>
     
     <div class="article-meta">
         
-        <span class="top"><a>置顶</a></span>
         
         
+        <span class="book">
+            
+                <a  data-rel="linux">linux</a>
+            
+        </span>
         
+        
+        <span class="tag">
+            
+            <a class="color1">linux</a>
+            
+            <a class="color5">内存管理</a>
+            
+            <a class="color5">伙伴系统</a>
+            
+            <a class="color5">Slab</a>
+            
+        </span>
         
     </div>
     <div class="article-meta">
         
-        创建时间:<time class="date" title='更新时间: 2020-04-18 14:45:26'>2020-03-29 16:05</time>
+        创建时间:<time class="date" title='更新时间: 2020-04-18 12:08:22'>2013-06-09 20:17</time>
         
     </div>
     <div class="article-meta">
@@ -453,7 +469,7 @@
     
     <div class="toc-ref">
     
-        <ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#Quick-Start"><span class="toc-text">Quick Start</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#Create-a-new-post"><span class="toc-text">Create a new post</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#Run-server"><span class="toc-text">Run server</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#Generate-static-files"><span class="toc-text">Generate static files</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#Deploy-to-remote-sites"><span class="toc-text">Deploy to remote sites</span></a></li></ol></li></ol>
+        <ol class="toc"><li class="toc-item toc-level-1"><a class="toc-link" href="#Slab内存释放"><span class="toc-text">Slab内存释放</span></a><ol class="toc-child"><li class="toc-item toc-level-2"><a class="toc-link" href="#kmem-cache-free函数"><span class="toc-text">kmem_cache_free函数</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#cache-free函数"><span class="toc-text">__cache_free函数</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#free-block函数"><span class="toc-text">free_block函数</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#slab-destroy函数"><span class="toc-text">slab_destroy函数</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#kmem-freepages函数"><span class="toc-text">kmem_freepages函数</span></a></li></ol></li></ol>
     
 <style>
     .left-col .switch-btn,
@@ -469,20 +485,170 @@
     
     <div class="article-entry" itemprop="articleBody">
       
-        <p>Welcome to <a href="https://hexo.io/" target="_blank" rel="noopener">Hexo</a>! This is your very first post. Check <a href="https://hexo.io/docs/" target="_blank" rel="noopener">documentation</a> for more info. If you get any problems when using Hexo, you can find the answer in <a href="https://hexo.io/docs/troubleshooting.html" target="_blank" rel="noopener">troubleshooting</a> or you can ask me on <a href="https://github.com/hexojs/hexo/issues" target="_blank" rel="noopener">GitHub</a>.</p>
-<h2 id="Quick-Start"><a href="#Quick-Start" class="headerlink" title="Quick Start"></a>Quick Start</h2><h3 id="Create-a-new-post"><a href="#Create-a-new-post" class="headerlink" title="Create a new post"></a>Create a new post</h3><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">$ hexo new <span class="string">"My New Post"</span></span><br></pre></td></tr></table></figure>
+        <h1 id="Slab内存释放"><a href="#Slab内存释放" class="headerlink" title="Slab内存释放"></a>Slab内存释放</h1><h2 id="kmem-cache-free函数"><a href="#kmem-cache-free函数" class="headerlink" title="kmem_cache_free函数"></a>kmem_cache_free函数</h2><pre><code>向一个slab中释放内存的的函数是kmem_cache_free，在mm/slab.c中实现，代码如下：
+3914 void kmem_cache_free(struct kmem_cache*cachep, void *objp)
+3915 {
+3916        unsigned long flags;
+3917
+3918        local_irq_save(flags);
+3919        debug_check_no_locks_freed(objp, obj_size(cachep));
+3920        if (!(cachep-&gt;flags &amp; SLAB_DEBUG_OBJECTS))
+3921        debug_check_no_obj_freed(objp,obj_size(cachep));
+3922        __cache_free(cachep, objp, __builtin_return_address(0));
+3923        local_irq_restore(flags);
+3924
+3925        trace_kmem_cache_free(_RET_IP_, objp);
+3926 }
 
-<p>More info: <a href="https://hexo.io/docs/writing.html" target="_blank" rel="noopener">Writing</a></p>
-<h3 id="Run-server"><a href="#Run-server" class="headerlink" title="Run server"></a>Run server</h3><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">$ hexo server</span><br></pre></td></tr></table></figure>
+除了开关中断和一些调试代码，释放的主要工作是调用__cache_free函数实现的。</code></pre><h2 id="cache-free函数"><a href="#cache-free函数" class="headerlink" title="__cache_free函数"></a>__cache_free函数</h2><pre><code>释放也分两种情况，如果一个cpu对象缓存的对象数目达到了上限，slab系统会对cup对象缓存进行刷新，就是把对象归还给slab块，如果这样造成的slab空闲对象数也超过限制，则会把空闲slab块也释放回伙伴系统。__cache_free在mm/slab.c中实现，代码如下：
+3670 static void cache_flusharray(structkmem_cache *cachep, struct array_cache *ac)
+3671 {
+3672        int batchcount;
+3673        struct kmem_list3 *l3;
+3674        int node = numa_mem_id();
+3675
+3676        batchcount = ac-&gt;batchcount;
+3677 #if DEBUG
+3678        BUG_ON(!batchcount || batchcount &gt; ac-&gt;avail);
+3679 #endif
+3680        check_irq_off();
+3681        l3 = cachep-&gt;nodelists[node];
+3682        spin_lock(&amp;l3-&gt;list_lock);
+3683        if (l3-&gt;shared) {
+3684        struct array_cache*shared_array = l3-&gt;shared;
+3685        int max =shared_array-&gt;limit - shared_array-&gt;avail;
+3686        if (max) {
+3687                if (batchcount &gt;max)
+3688                        batchcount =max;
+3689                        memcpy(&amp;(shared_array-&gt;entry[shared_array-&gt;avail]),
+3690                       ac-&gt;entry, sizeof(void *) *batchcount);
+3691                shared_array-&gt;avail+= batchcount;
+3692                goto free_done;
+3693        }
+3694        }
+3695
+3696        free_block(cachep, ac-&gt;entry, batchcount, node);
+3697 free_done:
+3698 #if STATS
+3699        {
+3700        int i = 0;
+3701        struct list_head *p;
+3702
+3703        p = l3-&gt;slabs_free.next;
+3704        while (p !=&amp;(l3-&gt;slabs_free)) {
+3705                struct slab *slabp;
+3706
+3707                slabp = list_entry(p,struct slab, list);
+3708                        BUG_ON(slabp-&gt;inuse);
+3709
+3710                i++;
+3711                p = p-&gt;next;
+3712        }
+3713        STATS_SET_FREEABLE(cachep, i);
+3714        }
+3715 #endif
+3716        spin_unlock(&amp;l3-&gt;list_lock);
+3717        ac-&gt;avail -= batchcount;
+3718        memmove(ac-&gt;entry, &amp;(ac-&gt;entry[batchcount]), sizeof(void*)*ac-&gt;avail);
+3719 }
 
-<p>More info: <a href="https://hexo.io/docs/server.html" target="_blank" rel="noopener">Server</a></p>
-<h3 id="Generate-static-files"><a href="#Generate-static-files" class="headerlink" title="Generate static files"></a>Generate static files</h3><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">$ hexo generate</span><br></pre></td></tr></table></figure>
+不考虑宏DEBUG和宏STATS中的代码，cache_flusharray函数就分成两种情况，一种是本节点的三链表存在共享slab对象缓存的情况，这样情况会把slab对象移动到三链表中的共享的slab对象缓存中，否则会调用free_block函数清理slab对象缓存中的队列。
+3683-3694行是三链表执行的共享slab缓存对象不为空的情况，这中情况会把slab对象缓存中超过限制的对象移动到共享的slab缓存对象中。3685行求出共享的slab对象缓存还能存放多少个对象，如果还能往里面放入对象就执行3687-3692行代码，把一些对象移动到共享slab对象缓存中。
+3696调用free_block函数释放对象。
+3717行减少可用对象计数
+3718行因为前面的对象已经被移动到共享的slab对象缓存或释放给对象所属的slab块了，但后面还有对象是可用的，所以要把后面对象的指针前移。</code></pre><h2 id="free-block函数"><a href="#free-block函数" class="headerlink" title="free_block函数"></a>free_block函数</h2><pre><code>真正把对象释放回slab块是在free_block中完成的，free_block在mm/slab.c中实现，代码如下：
+3626 static void free_block(struct kmem_cache*cachep, void **objpp, int nr_objects,
+3627               int node)
+3628 {
+3629        int i;
+3630        struct kmem_list3 *l3;
+3631
+3632        for (i = 0; i &lt; nr_objects; i++) {
+3633        void *objp = objpp[i];
+3634                struct slab *slabp;
+3635
+3636        slabp = virt_to_slab(objp);
+3637        l3 =cachep-&gt;nodelists[node];
+3638        list_del(&amp;slabp-&gt;list);
+3639                check_spinlock_acquired_node(cachep, node);
+3640                check_slabp(cachep,slabp);
+3641        slab_put_obj(cachep, slabp,objp, node);
+3642        STATS_DEC_ACTIVE(cachep);
+3643        l3-&gt;free_objects++;
+3644        check_slabp(cachep, slabp);
+3645
+3646                /* fixup slab chains*/
+3647        if (slabp-&gt;inuse == 0) {
+3648                if(l3-&gt;free_objects &gt; l3-&gt;free_limit) {
+3649                                l3-&gt;free_objects -= cachep-&gt;num;
+3650                        /* No need to drop any previously held
+3651                         * lock here,even if we have a off-slab slab
+3652                         * descriptorit is guaranteed to come from
+3653                         * a differentcache, refer to comments before
+3654                         *alloc_slabmgmt.
+3655                         */
+3656                                slab_destroy(cachep, slabp);
+3657                } else {
+3658                        list_add(&amp;slabp-&gt;list,&amp;l3-&gt;slabs_free);
+3659                }
+3660        } else {
+3661                /* Unconditionallymove a slab to the end of the
+3662                 * partial list onfree - maximum time for the
+3663                 * other objects to befreed, too.
+3664                 */
+3665                        list_add_tail(&amp;slabp-&gt;list, &amp;l3-&gt;slabs_partial);
+3666        }
+3667        }
+3668 }
 
-<p>More info: <a href="https://hexo.io/docs/generating.html" target="_blank" rel="noopener">Generating</a></p>
-<h3 id="Deploy-to-remote-sites"><a href="#Deploy-to-remote-sites" class="headerlink" title="Deploy to remote sites"></a>Deploy to remote sites</h3><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">$ hexo deploy</span><br></pre></td></tr></table></figure>
+free_block的代码其实也比较简单，下面分析几行关键代码。
+3636行调用virt_to_slab获得struct slab的地址，我们知道根据虚拟地址可以获得管理该虚拟你在的struct page结构地址，而structslab地址存储了struct page的成员lru.prev中。3641行调用slab_put_obj函数把对象归还给salb块。
+3638行把slab块从原来的链表删除，因为向该slab块归还了一个对象，该slab块可能已经成为完全空闲块，3647根据slab块是否有对象正在使用中来把slab块加入不同的队列，3649-3659是slab块完全空闲的情况。如果slab块完全空闲，还要考虑一种情况就是空闲slab块的数目是不是超过了限制，3649-3656属于这种情况，3649减少空闲对象计数，3656调用slab_destroy块释放一块slab块。对于空闲块数量没有超过限制的情况，3658把slab块加入三链表的完全空闲队列。对还不是完全空闲的slab块，3665行吧slab块加入部分空闲链表。</code></pre><h2 id="slab-destroy函数"><a href="#slab-destroy函数" class="headerlink" title="slab_destroy函数"></a>slab_destroy函数</h2><pre><code>slab_destroy用于销毁slab块，就是把slab块释放到伙伴系统，在mm/slab.c中实现，代码如下：
+2085 static void slab_destroy(structkmem_cache *cachep, struct slab *slabp)
+2086 {
+2087        void *addr = slabp-&gt;s_mem - slabp-&gt;colouroff;
+2088
+2089        slab_destroy_debugcheck(cachep, slabp);
+2090        if (unlikely(cachep-&gt;flags &amp; SLAB_DESTROY_BY_RCU)) {
+2091        struct slab_rcu *slab_rcu;
+2092
+2093        slab_rcu = (struct slab_rcu*)slabp;
+2094        slab_rcu-&gt;cachep = cachep;
+2095        slab_rcu-&gt;addr = addr;
+2096        call_rcu(&amp;slab_rcu-&gt;head,kmem_rcu_free);
+2097        } else {
+2098        kmem_freepages(cachep, addr);
+2099        if (OFF_SLAB(cachep))
+2100                        kmem_cache_free(cachep-&gt;slabp_cache, slabp);
+2101        }
+2102 }
 
-<p>More info: <a href="https://hexo.io/docs/one-command-deployment.html" target="_blank" rel="noopener">Deployment</a></p>
-
+在函数alloc_slabmgmt计算struct slab的存放地址是用2798行代码：       slabp-&gt;s_mem = objp + colour_off，现在计算slab块的首地址就是slabp-&gt;s_mem -slabp-&gt;colouroff。
+不考虑使用rcu的情况，剩下的代码就是2098行调用kmem_freepages释放slab的内存，2099-2100如果struct slab是单独存放的，也需要释放这部分空间，这部分空间是属于slab的，调用kmem_cache_free释放。</code></pre><h2 id="kmem-freepages函数"><a href="#kmem-freepages函数" class="headerlink" title="kmem_freepages函数"></a>kmem_freepages函数</h2><pre><code>kmem_freepages在mm/slab.c中实现，代码如下：
+1837 static void kmem_freepages(structkmem_cache *cachep, void *addr)
+1838 {
+1839        unsigned long i = (1 &lt;&lt; cachep-&gt;gfporder);
+1840        struct page *page = virt_to_page(addr);
+1841        const unsigned long nr_freed = i;
+1842
+1843        kmemcheck_free_shadow(page, cachep-&gt;gfporder);
+1844
+1845        if (cachep-&gt;flags &amp; SLAB_RECLAIM_ACCOUNT)
+1846                sub_zone_page_state(page_zone(page),
+1847                        NR_SLAB_RECLAIMABLE,nr_freed);
+1848        else
+1849                sub_zone_page_state(page_zone(page),
+1850                                NR_SLAB_UNRECLAIMABLE, nr_freed);
+1851        while (i--) {
+1852        BUG_ON(!PageSlab(page));
+1853                __ClearPageSlab(page);
+1854        page++;
+1855        }
+1856        if (current-&gt;reclaim_state)
+1857                current-&gt;reclaim_state-&gt;reclaimed_slab += nr_freed;
+1858        free_pages((unsigned long)addr, cachep-&gt;gfporder);
+1859 }
+kmem_freepages函数调用free_pages释放slab块的空间到伙伴系统，free_pages需要两个参数：地址和slab块的阶，slab块的阶存放在struct kmem_cache的成员gfporder中。</code></pre>
       
        <hr><span style="font-style: italic;color: gray;"> 转载请注明来源，欢迎对文章中的引用来源进行考证，欢迎指出任何有错误或不够清晰的表达。可以在下面评论区评论，也可以邮件至 ancjf@163.com </span>
     </div>
@@ -495,12 +661,12 @@
 
 
 <div class="article_copyright">
-    <p><span class="copy-title">文章标题:</span>Hello World</p>
+    <p><span class="copy-title">文章标题:</span>linux 源代码分析9:Slab内存释放</p>
     
     <p><span class="copy-title">本文作者:</span><a  title="ancjf">ancjf</a></p>
-    <p><span class="copy-title">发布时间:</span>2020-03-29, 16:05:21</p>
-    <p><span class="copy-title">最后更新:</span>2020-04-18, 14:45:26</p>
-    <span class="copy-title">原始链接:</span><a class="post-url" href="/2020/03/29/hello-world/" title="Hello World">http://ancjf.com/2020/03/29/hello-world/</a>
+    <p><span class="copy-title">发布时间:</span>2013-06-09, 20:17:42</p>
+    <p><span class="copy-title">最后更新:</span>2020-04-18, 12:08:22</p>
+    <span class="copy-title">原始链接:</span><a class="post-url" href="/2013/06/09/linux-3-4-10-%E5%86%85%E6%A0%B8%E5%86%85%E5%AD%98%E7%AE%A1%E7%90%86%E6%BA%90%E4%BB%A3%E7%A0%81%E5%88%86%E6%9E%909-Slab%E5%86%85%E5%AD%98%E9%87%8A%E6%94%BE/" title="linux 源代码分析9:Slab内存释放">http://ancjf.com/2013/06/09/linux-3-4-10-%E5%86%85%E6%A0%B8%E5%86%85%E5%AD%98%E7%AE%A1%E7%90%86%E6%BA%90%E4%BB%A3%E7%A0%81%E5%88%86%E6%9E%909-Slab%E5%86%85%E5%AD%98%E9%87%8A%E6%94%BE/</a>
     <p>
         <span class="copy-title">版权声明:</span><i class="fa fa-creative-commons"></i> <a rel="license noopener" href="http://creativecommons.org/licenses/by-nc-sa/4.0/" target="_blank" title="CC BY-NC-SA 4.0 International" target = "_blank">"署名-非商用-相同方式共享 4.0"</a> 转载请保留原文链接及作者。
     </p>

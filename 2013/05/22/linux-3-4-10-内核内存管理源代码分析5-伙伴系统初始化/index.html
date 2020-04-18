@@ -1,0 +1,1584 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>linux 源代码分析5:伙伴系统初始化 | 机器人的博客</title>
+  <meta name="keywords" content=" linux , 内存管理 , 伙伴系统 , 伙伴系统初始化 ">
+  <meta name="description" content="linux 源代码分析5:伙伴系统初始化 | 机器人的博客">
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<meta property="og:type" content="article">
+<meta property="og:title" content="以太坊">
+<meta property="og:url" content="http://ancjf.com/2020/03/29/%E4%BB%A5%E5%A4%AA%E5%9D%8A/index.html">
+<meta property="og:site_name" content="机器人的博客">
+<meta property="og:locale" content="en_US">
+<meta property="article:published_time" content="2020-03-29T13:58:09.000Z">
+<meta property="article:modified_time" content="2020-03-29T13:58:31.258Z">
+<meta property="article:author" content="ancjf">
+<meta name="twitter:card" content="summary">
+
+
+<link rel="icon" href="/img/avatar.jpg">
+
+<link href="/css/style.css?v=1.0.1" rel="stylesheet">
+
+<link href="/css/hl_theme/atom-light.css?v=1.0.1" rel="stylesheet">
+
+<link href="//cdn.bootcss.com/animate.css/3.5.2/animate.min.css" rel="stylesheet">
+<link href="//cdn.bootcss.com/font-awesome/4.7.0/css/font-awesome.min.css" rel="stylesheet">
+
+<script src="//cdn.bootcss.com/jquery/2.2.4/jquery.min.js"></script>
+<script src="/js/jquery.autocomplete.min.js?v=1.0.1" ></script>
+
+<script src="//cdn.bootcss.com/highlight.js/9.12.0/highlight.min.js"></script>
+<script>
+    hljs.initHighlightingOnLoad();
+</script>
+
+<script src="//cdn.bootcss.com/nprogress/0.2.0/nprogress.min.js"></script>
+
+
+
+<script src="//cdn.bootcss.com/jquery-cookie/1.4.1/jquery.cookie.min.js" ></script>
+
+<script src="/js/iconfont.js?v=1.0.1" ></script>
+
+<meta name="generator" content="Hexo 4.2.0"></head>
+<div style="display: none">
+  <input class="theme_disqus_on" value="false">
+  <input class="theme_preload_comment" value="false">
+  <input class="theme_blog_path" value="">
+</div>
+
+<body>
+<aside class="nav">
+    <div class="nav-left">
+        <a href="/" class="avatar_target">
+    <img class="avatar" src="/img/avatar.jpg" />
+</a>
+<div class="author">
+    <span>ancjf</span>
+</div>
+
+<div class="icon">
+    
+        
+        <a title="rss" href="/atom.xml" target="_blank">
+            
+                <svg class="iconfont-svg" aria-hidden="true">
+                    <use xlink:href="#icon-rss"></use>
+                </svg>
+            
+        </a>
+        
+    
+        
+        <a title="github" href="https://github.com/ancjf" target="_blank">
+            
+                <svg class="iconfont-svg" aria-hidden="true">
+                    <use xlink:href="#icon-github"></use>
+                </svg>
+            
+        </a>
+        
+    
+        
+        <a title="facebook" href="https://www.facebook.com/faker.tops" target="_blank">
+            
+                <svg class="iconfont-svg" aria-hidden="true">
+                    <use xlink:href="#icon-facebook"></use>
+                </svg>
+            
+        </a>
+        
+    
+        
+    
+        
+    
+        
+        <a title="instagram" href="https://www.facebook.com/faker.tops" target="_blank">
+            
+                <svg class="iconfont-svg" aria-hidden="true">
+                    <use xlink:href="#icon-instagram"></use>
+                </svg>
+            
+        </a>
+        
+    
+        
+        <a title="reddit" href="https://www.reddit.com/user/yelog/" target="_blank">
+            
+                <svg class="iconfont-svg" aria-hidden="true">
+                    <use xlink:href="#icon-reddit"></use>
+                </svg>
+            
+        </a>
+        
+    
+        
+        <a title="weibo" href="http://weibo.com/u/2307534817" target="_blank">
+            
+                <svg class="iconfont-svg" aria-hidden="true">
+                    <use xlink:href="#icon-weibo"></use>
+                </svg>
+            
+        </a>
+        
+    
+        
+        <a title="jianshu" href="https://www.jianshu.com/u/ff56736de7cf" target="_blank">
+            
+                <svg class="iconfont-svg" aria-hidden="true">
+                    <use xlink:href="#icon-jianshu"></use>
+                </svg>
+            
+        </a>
+        
+    
+        
+        <a title="zhihu" href="https://www.zhihu.com/people/jaytp/activities" target="_blank">
+            
+                <svg class="iconfont-svg" aria-hidden="true">
+                    <use xlink:href="#icon-zhihu"></use>
+                </svg>
+            
+        </a>
+        
+    
+        
+    
+        
+        <a title="oschina" href="https://my.oschina.net/yelog" target="_blank">
+            
+                <svg class="iconfont-svg" aria-hidden="true">
+                    <use xlink:href="#icon-oschina"></use>
+                </svg>
+            
+        </a>
+        
+    
+        
+    
+        
+        <a title="email" href="mailto:ancjf@163.com" target="_blank">
+            
+                <svg class="iconfont-svg" aria-hidden="true">
+                    <use xlink:href="#icon-email"></use>
+                </svg>
+            
+        </a>
+        
+    
+        
+        <a title="qq" href="http://wpa.qq.com/msgrd?v=3&uin=156715133&site=qq&menu=yes" target="_blank">
+            
+                <svg class="iconfont-svg" aria-hidden="true">
+                    <use xlink:href="#icon-qq"></use>
+                </svg>
+            
+        </a>
+        
+    
+        
+        <a title="kugou" href="https://www.kugou.com/" target="_blank">
+            
+                <svg class="iconfont-svg" aria-hidden="true">
+                    <use xlink:href="#icon-kugou"></use>
+                </svg>
+            
+        </a>
+        
+    
+        
+        <a title="neteasemusic" href="https://music.163.com/#/user/home?id=88151013" target="_blank">
+            
+                <svg class="iconfont-svg" aria-hidden="true">
+                    <use xlink:href="#icon-neteasemusic"></use>
+                </svg>
+            
+        </a>
+        
+    
+</div>
+
+
+
+
+<ul>
+    <li><div class="all active">全部文章<small>(13)</small></div></li>
+    
+        
+            
+            <li><div data-rel="linux">linux<small>(11)</small></div>
+                
+            </li>
+            
+        
+    
+        
+            
+            <li><div data-rel="区块链">区块链<small>(1)</small></div>
+                
+            </li>
+            
+        
+    
+</ul>
+<div class="left-bottom">
+    <div class="menus">
+    
+    
+    
+    
+    </div>
+    <div><a class="about  hasFriend  site_url"  href="/about">关于</a><a style="width: 50%"  class="friends">友链</a></div>
+</div>
+<input type="hidden" id="yelog_site_posts_number" value="13">
+
+<div style="display: none">
+    <span id="busuanzi_value_site_uv"></span>
+    <span id="busuanzi_value_site_pv"></span>
+</div>
+
+    </div>
+    <div class="nav-right">
+        <div class="friends-area">
+    <div class="friends-title">
+        友情链接
+        <i class="back-title-list"></i>
+    </div>
+    <div class="friends-content">
+        <ul>
+            
+            <li><a target="_blank" href="http://yelog.org/">叶落阁</a></li>
+            
+        </ul>
+    </div>
+</div>
+        <div class="title-list">
+    <form onkeydown="if(event.keyCode === 13){return false;}">
+        <input id="local-search-input" class="search" type="text" placeholder="Search..." />
+        <i class="cross"></i>
+        <span>
+            <label for="tagswitch">Tags:</label>
+            <input id="tagswitch" type="checkbox" style="display: none" />
+            <i id="tagsWitchIcon"></i>
+        </span>
+    </form>
+    <div class="tags-list">
+    
+    <li class="article-tag-list-item">
+        <a class="color1">linux</a>
+    </li>
+    
+    <li class="article-tag-list-item">
+        <a class="color5">内存管理</a>
+    </li>
+    
+    <li class="article-tag-list-item">
+        <a class="color5">伙伴系统</a>
+    </li>
+    
+    <li class="article-tag-list-item">
+        <a class="color5">Slab</a>
+    </li>
+    
+    <li class="article-tag-list-item">
+        <a class="color5">内存释放</a>
+    </li>
+    
+    <li class="article-tag-list-item">
+        <a class="color3">伙伴系统初始化</a>
+    </li>
+    
+    <li class="article-tag-list-item">
+        <a class="color5">内存分配</a>
+    </li>
+    
+    <div class="clearfix"></div>
+</div>
+
+    
+    <nav id="title-list-nav">
+        
+        <a  class="linux "
+           href="/2013/06/09/linux-3-4-10-%E5%86%85%E6%A0%B8%E5%86%85%E5%AD%98%E7%AE%A1%E7%90%86%E6%BA%90%E4%BB%A3%E7%A0%81%E5%88%86%E6%9E%9010-slab%E9%80%9A%E7%94%A8%E9%95%BF%E5%BA%A6%E5%86%85%E5%AD%98%E5%88%86%E9%85%8D/"
+           data-tag="linux,内存管理,伙伴系统,Slab"
+           data-author="" >
+            <span class="post-title" title="linux 源代码分析10:slab通用长度内存分配">linux 源代码分析10:slab通用长度内存分配</span>
+            <span class="post-date" title="2013-06-09 20:17:42">2013/06/09</span>
+        </a>
+        
+        <a id="top" class=""
+           href="/2020/03/29/hello-world/"
+           data-tag=""
+           data-author="" >
+            <span class="post-title" title="Hello World">Hello World</span>
+            <span class="post-date" title="2020-03-29 16:05:21">2020/03/29</span>
+        </a>
+        
+        <a  class="linux "
+           href="/2013/05/18/linux-3-4-10-%E5%86%85%E6%A0%B8%E5%86%85%E5%AD%98%E7%AE%A1%E7%90%86%E6%BA%90%E4%BB%A3%E7%A0%81%E5%88%86%E6%9E%901%EF%BC%9A%E6%BA%90%E4%BB%A3%E7%A0%81%E9%98%85%E8%AF%BB%E5%B7%A5%E5%85%B7%EF%BC%8C%E7%BC%96%E8%AF%91%E5%8F%8A%E8%B0%83%E8%AF%95/"
+           data-tag="linux,内存管理"
+           data-author="" >
+            <span class="post-title" title="linux 源代码分析1:源代码阅读工具，编译及调试">linux 源代码分析1:源代码阅读工具，编译及调试</span>
+            <span class="post-date" title="2013-05-18 10:18:17">2013/05/18</span>
+        </a>
+        
+        <a  class="linux "
+           href="/2013/06/03/linux-3-4-10-%E5%86%85%E6%A0%B8%E5%86%85%E5%AD%98%E7%AE%A1%E7%90%86%E6%BA%90%E4%BB%A3%E7%A0%81%E5%88%86%E6%9E%906-Slab%E5%88%86%E9%85%8D%E5%99%A8/"
+           data-tag="linux,内存管理,伙伴系统,Slab"
+           data-author="" >
+            <span class="post-title" title="linux 源代码分析6:Slab分配器">linux 源代码分析6:Slab分配器</span>
+            <span class="post-date" title="2013-06-03 19:28:59">2013/06/03</span>
+        </a>
+        
+        <a  class="linux "
+           href="/2013/05/21/linux-3-4-10-%E5%86%85%E6%A0%B8%E5%86%85%E5%AD%98%E7%AE%A1%E7%90%86%E6%BA%90%E4%BB%A3%E7%A0%81%E5%88%86%E6%9E%904-%E4%BC%99%E4%BC%B4%E7%B3%BB%E7%BB%9F%E5%86%85%E5%AD%98%E9%87%8A%E6%94%BE/"
+           data-tag="linux,内存管理,伙伴系统,内存释放"
+           data-author="" >
+            <span class="post-title" title="linux 源代码分析4:伙伴系统内存释放">linux 源代码分析4:伙伴系统内存释放</span>
+            <span class="post-date" title="2013-05-21 20:25:33">2013/05/21</span>
+        </a>
+        
+        <a  class="区块链 "
+           href="/2020/03/29/%E4%BB%A5%E5%A4%AA%E5%9D%8A/"
+           data-tag=""
+           data-author="" >
+            <span class="post-title" title="以太坊">以太坊</span>
+            <span class="post-date" title="2020-03-29 21:58:09">2020/03/29</span>
+        </a>
+        
+        <a  class="linux "
+           href="/2013/06/05/linux-3-4-10-%E5%86%85%E6%A0%B8%E5%86%85%E5%AD%98%E7%AE%A1%E7%90%86%E6%BA%90%E4%BB%A3%E7%A0%81%E5%88%86%E6%9E%907-Slab%E5%9D%97%E7%9A%84%E7%AE%A1%E7%90%86/"
+           data-tag="linux,内存管理,伙伴系统,Slab"
+           data-author="" >
+            <span class="post-title" title="linux 源代码分析7:Slab块的管理">linux 源代码分析7:Slab块的管理</span>
+            <span class="post-date" title="2013-06-05 20:56:05">2013/06/05</span>
+        </a>
+        
+        <a  class="linux "
+           href="/2013/06/12/linux-3-4-10-%E5%86%85%E6%A0%B8%E5%86%85%E5%AD%98%E7%AE%A1%E7%90%86%E6%BA%90%E4%BB%A3%E7%A0%81%E5%88%86%E6%9E%9011-Slab%E5%88%9D%E5%A7%8B%E5%8C%96/"
+           data-tag="linux,内存管理,伙伴系统,Slab"
+           data-author="" >
+            <span class="post-title" title="linux 源代码分析11:Slab初始化">linux 源代码分析11:Slab初始化</span>
+            <span class="post-date" title="2013-06-12 19:43:06">2013/06/12</span>
+        </a>
+        
+        <a  class="linux "
+           href="/2013/05/19/linux-3-4-10-%E5%86%85%E6%A0%B8%E5%86%85%E5%AD%98%E7%AE%A1%E7%90%86%E6%BA%90%E4%BB%A3%E7%A0%81%E5%88%86%E6%9E%902%EF%BC%9A%E4%BC%99%E4%BC%B4%E7%B3%BB%E7%BB%9F/"
+           data-tag="linux,内存管理,伙伴系统"
+           data-author="" >
+            <span class="post-title" title="linux 源代码分析2:伙伴系统">linux 源代码分析2:伙伴系统</span>
+            <span class="post-date" title="2013-05-19 11:08:56">2013/05/19</span>
+        </a>
+        
+        <a  class="linux "
+           href="/2013/06/09/linux-3-4-10-%E5%86%85%E6%A0%B8%E5%86%85%E5%AD%98%E7%AE%A1%E7%90%86%E6%BA%90%E4%BB%A3%E7%A0%81%E5%88%86%E6%9E%909-Slab%E5%86%85%E5%AD%98%E9%87%8A%E6%94%BE/"
+           data-tag="linux,内存管理,伙伴系统,Slab"
+           data-author="" >
+            <span class="post-title" title="linux 源代码分析9:Slab内存释放">linux 源代码分析9:Slab内存释放</span>
+            <span class="post-date" title="2013-06-09 20:17:42">2013/06/09</span>
+        </a>
+        
+        <a  class="linux "
+           href="/2013/06/04/linux-3-4-10-%E5%86%85%E6%A0%B8%E5%86%85%E5%AD%98%E7%AE%A1%E7%90%86%E6%BA%90%E4%BB%A3%E7%A0%81%E5%88%86%E6%9E%908-Slab%E5%86%85%E5%AD%98%E5%88%86%E9%85%8D/"
+           data-tag="linux,内存管理,伙伴系统,Slab"
+           data-author="" >
+            <span class="post-title" title="linux 源代码分析8:Slab内存分配">linux 源代码分析8:Slab内存分配</span>
+            <span class="post-date" title="2013-06-04 19:47:29">2013/06/04</span>
+        </a>
+        
+        <a  class="linux "
+           href="/2013/05/22/linux-3-4-10-%E5%86%85%E6%A0%B8%E5%86%85%E5%AD%98%E7%AE%A1%E7%90%86%E6%BA%90%E4%BB%A3%E7%A0%81%E5%88%86%E6%9E%905-%E4%BC%99%E4%BC%B4%E7%B3%BB%E7%BB%9F%E5%88%9D%E5%A7%8B%E5%8C%96/"
+           data-tag="linux,内存管理,伙伴系统,伙伴系统初始化"
+           data-author="" >
+            <span class="post-title" title="linux 源代码分析5:伙伴系统初始化">linux 源代码分析5:伙伴系统初始化</span>
+            <span class="post-date" title="2013-05-22 21:59:15">2013/05/22</span>
+        </a>
+        
+        <a  class="linux "
+           href="/2013/05/20/linux-3-4-10-%E5%86%85%E6%A0%B8%E5%86%85%E5%AD%98%E7%AE%A1%E7%90%86%E6%BA%90%E4%BB%A3%E7%A0%81%E5%88%86%E6%9E%903-%E4%BC%99%E4%BC%B4%E7%B3%BB%E7%BB%9F%E5%86%85%E5%AD%98%E5%88%86%E9%85%8D/"
+           data-tag="linux,内存管理,伙伴系统,内存分配"
+           data-author="" >
+            <span class="post-title" title="linux 源代码分析3:伙伴系统内存分配">linux 源代码分析3:伙伴系统内存分配</span>
+            <span class="post-date" title="2013-05-20 19:29:04">2013/05/20</span>
+        </a>
+        
+    </nav>
+</div>
+    </div>
+    <div class="hide-list">
+        <div class="semicircle">
+            <div class="brackets first"><</div>
+            <div class="brackets">&gt;</div>
+        </div>
+    </div>
+</aside>
+<div class="post">
+    <div class="pjax">
+        <article id="post-linux-3-4-10-内核内存管理源代码分析5-伙伴系统初始化" class="article article-type-post" itemscope itemprop="blogPost">
+    
+        <h1 class="article-title">linux 源代码分析5:伙伴系统初始化</h1>
+    
+    <div class="article-meta">
+        
+        
+        
+        <span class="book">
+            
+                <a  data-rel="linux">linux</a>
+            
+        </span>
+        
+        
+        <span class="tag">
+            
+            <a class="color1">linux</a>
+            
+            <a class="color5">内存管理</a>
+            
+            <a class="color5">伙伴系统</a>
+            
+            <a class="color3">伙伴系统初始化</a>
+            
+        </span>
+        
+    </div>
+    <div class="article-meta">
+        
+        创建时间:<time class="date" title='更新时间: 2020-04-18 12:07:56'>2013-05-22 21:59</time>
+        
+    </div>
+    <div class="article-meta">
+        
+        
+        <span id="busuanzi_container_page_pv">
+            阅读:<span id="busuanzi_value_page_pv">
+                <span class="count-comment">
+                    <span class="spinner">
+                      <div class="cube1"></div>
+                      <div class="cube2"></div>
+                    </span>
+                </span>
+            </span>
+        </span>
+        
+        
+    </div>
+    
+    <div class="toc-ref">
+    
+        <ol class="toc"><li class="toc-item toc-level-1"><a class="toc-link" href="#伙伴系统初始化"><span class="toc-text">伙伴系统初始化</span></a><ol class="toc-child"><li class="toc-item toc-level-2"><a class="toc-link" href="#启动"><span class="toc-text">启动</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#初始化"><span class="toc-text">初始化</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#free-pages-函数"><span class="toc-text">__free_pages 函数</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#zone-spanned-pages-in-node函数"><span class="toc-text">zone_spanned_pages_in_node函数</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#adjust-zone-range-for-zone-movable函数"><span class="toc-text">adjust_zone_range_for_zone_movable函数</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#absent-pages-in-range函数"><span class="toc-text">absent_pages_in_range函数</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#get-pfn-range-for-nid函数"><span class="toc-text">get_pfn_range_for_nid函数</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#get-pfn-range-for-nid函数遍历memblock分配器在节点的每个空闲区域，获得最大和最小页帧号。"><span class="toc-text">get_pfn_range_for_nid函数遍历memblock分配器在节点的每个空闲区域，获得最大和最小页帧号。</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#zone-sizes-init函数"><span class="toc-text">zone_sizes_init函数</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#free-area-init-nodes函数"><span class="toc-text">free_area_init_nodes函数</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#free-area-init-nodes的代码比较长，但主要作了两项工作，确定节点的每个区域的上下界，然后对每个节点初始化。"><span class="toc-text">free_area_init_nodes的代码比较长，但主要作了两项工作，确定节点的每个区域的上下界，然后对每个节点初始化。</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#free-area-init-node函数"><span class="toc-text">free_area_init_node函数</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#free-area-init-core函数"><span class="toc-text">free_area_init_core函数</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#memmap-init-zone函数"><span class="toc-text">memmap_init_zone函数</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#build-all-zonelists函数"><span class="toc-text">build_all_zonelists函数</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#build-all-zonelists函数-1"><span class="toc-text">__build_all_zonelists函数</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#build-zonelists函数"><span class="toc-text">build_zonelists函数</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#build-zonelists-node函数"><span class="toc-text">build_zonelists_node函数</span></a></li></ol></li></ol>
+    
+<style>
+    .left-col .switch-btn,
+    .left-col .switch-area {
+        display: none;
+    }
+    .toc-level-3 i,
+    .toc-level-3 ol {
+        display: none !important;
+    }
+</style>
+</div>
+    
+    <div class="article-entry" itemprop="articleBody">
+      
+        <h1 id="伙伴系统初始化"><a href="#伙伴系统初始化" class="headerlink" title="伙伴系统初始化"></a>伙伴系统初始化</h1><h2 id="启动"><a href="#启动" class="headerlink" title="启动"></a>启动</h2><pre><code>计算机在启动时都是先加电,然后进行硬件检测并加载引导程序。
+引导程序把Linux系统内核装载到内存，加载内核后引导程序跳转到
+arch/x86/boot/compressed/head_32.S的startup_32标号处执行。
+在arch/x86/boot/compressed/head_32.S中会调用arch/x86/boot/main.c中的main函数。
+main函数执行完后会跳转到arch/x86/kernel/head_32.S的标号startup_32处执行。
+在arch/x86/kernel/head_32.S中会调用arch/x86/kernel/head32.c中的i386_start_kernel
+i386_start_kernel调用init/main.c中的start_kernel函数，start_kernel是用来启动内核的主函数。
+start_kernel函数会调用arch/x86/kernel/setup.c中的setup_arch函数
+setup_arch函数会调用arch/x86/mm/init_32.c中的paging_init函数</code></pre><h2 id="初始化"><a href="#初始化" class="headerlink" title="初始化"></a>初始化</h2><pre><code>初始化后释放初始化内存分配器的内存到伙伴系统的流程是：
+start_kernel ()at init/main.c:524
+mm_init() at init/main.c:458
+mem_init() at arch/x86/mm/init_32.c:752
+free_all_bootmem() at mm/nobootmem.c:168
+free_low_memory_core_early() at mm/nobootmem.c:130
+__free_memory_core() at mm/nobootmem.c:118
+__free_pages_memory() at mm/nobootmem.c:99
+__free_pages_bootmem() at mm/page_alloc.c:749
+__free_pages() at mm/page_alloc.c:2506</code></pre><h2 id="free-pages-函数"><a href="#free-pages-函数" class="headerlink" title="__free_pages 函数"></a>__free_pages 函数</h2><pre><code>最终由伙伴系统的内存释放函数__free_pages来吧初始化内存分配器的内存释放到伙伴系统。
+伙伴系统的初始化实质是从初始化内存分配器接管内存管理的权限。而伙伴初始化也分成两个步骤，第一步是伙伴系统各种结构和管理数据的初始化，第二个步骤是把初始化内存分配器中的空闲内存释放到伙伴系统，之后就可以正式使用伙伴系统分配内存了。第一个步骤关键由zone_sizes_init和build_all_zonelists函数完成。第二个步骤为的执行流程我们在上面已经列出，具体代码将在初始内存分配器的实现代码。
+我们知道在numa系统中，包含若干节点，而每个节点包含若干区域，每个区域包含若干空闲区域，每个空闲区域包含若干迁移类型，对每个迁移类型，都有一个空闲链表。空闲链表链接的是空闲块。
+在初始化过程中关键的是节点和区域的初始化，因为空闲区域的初始化只是对包含的空闲链表数组的每个链表初始化为空链表。并对空闲块计数初始化为0而已。
+节点初始化重要的部分是找到第一个可用的页的页帧，节点包含也页面数和节点的可用页面数，还有初始化节点中page结构数组。
+对区域的初始化的关键也查找也是第一个可用的页的页帧，以及区域页面数和可用页面数的初始化。实际节点的可用页面数就是节点的所有区域可用页面数的和，节点的页面数是节点的所有区域包含的页面数的和。
+为了在后面的分析避免嵌套过深，下面先介绍一个函数，包括计算区域页面数和可用页面数的函数和计算节点范围的函数：</code></pre><h2 id="zone-spanned-pages-in-node函数"><a href="#zone-spanned-pages-in-node函数" class="headerlink" title="zone_spanned_pages_in_node函数"></a>zone_spanned_pages_in_node函数</h2><pre><code>zone_spanned_pages_in_node函数计算区域的的包含的页面数，包含中间可能存在的空洞。计算区域总页面数要考虑两个因数：
+1:在系统中包含一个数组arch_zone_lowest_possible_pfn，保存了每种类型的区域可能的最小的页帧号，另外一个数组arch_zone_highest_possible_pfn，保存了每种类型的区域可能的最大的页帧号。
+2:另外有一种区域类型是ZONE_MOVABLE，这是系统为了防止内存碎片退出的一种区域类型，其他类型的区域不能包含ZONE_MOVABLE区域的页面。一个节点中的区域是按顺序存放的，ZONE_MOVABLE存放在节点的最高端。
+zone_spanned_pages_in_node在mm/page_alloc.c中实现代码如下：
+4090 staticunsigned long __meminit zone_spanned_pages_in_node(int nid,
+4091                                        unsigned long zone_type,
+4092                                        unsigned long *ignored)
+4093 {
+4094unsigned long node_start_pfn,node_end_pfn;
+4095unsigned long zone_start_pfn,zone_end_pfn;
+4096
+4097/* Get the start and end of the nodeand zone */
+4098get_pfn_range_for_nid(nid,&amp;node_start_pfn, &amp;node_end_pfn);
+4099zone_start_pfn = arch_zone_lowest_possible_pfn[zone_type];
+4100zone_end_pfn =arch_zone_highest_possible_pfn[zone_type];
+4101        adjust_zone_range_for_zone_movable(nid, zone_type,
+4102                                node_start_pfn, node_end_pfn,
+4103                                 &amp;zone_start_pfn,&amp;zone_end_pfn);
+4104
+4105/* Check that this node has pageswithin the zone&apos;s required range */
+4106if (zone_end_pfn &lt; node_start_pfn|| zone_start_pfn &gt; node_end_pfn)
+4107        return 0;
+4108
+4109/* Move the zone boundaries inside thenode if necessary */
+4110zone_end_pfn = min(zone_end_pfn,node_end_pfn);
+4111zone_start_pfn = max(zone_start_pfn,node_start_pfn);
+4112
+4113/* Return the spanned pages */
+4114return zone_end_pfn - zone_start_pfn;
+4115 }
+4098行调用get_pfn_range_for_nid函数遍历初始化内存分配器的每个空闲段，取得最小的空闲页帧和最大的空闲页帧。
+4098-4099行获得系统允许的区域最大页帧和最小页帧。
+在区域中可能于ZONE_MOVABLE类型区域有重合，4101行调用adjust_zone_range_for_zone_movable函数去掉与区域ZONE_MOVABLE类型重合的部分。
+4106-4107行如果区域不在所在的节点的页范围内，返回0.
+4110-4111行区域的页面范围只能在所在节点的范围内。</code></pre><h2 id="adjust-zone-range-for-zone-movable函数"><a href="#adjust-zone-range-for-zone-movable函数" class="headerlink" title="adjust_zone_range_for_zone_movable函数"></a>adjust_zone_range_for_zone_movable函数</h2><pre><code>adjust_zone_range_for_zone_movable函数是用来保留ZONE_MOVABLE类型区域的页面的。在mm/page_alloc.c中实现代码如下：
+4060static void __meminit adjust_zone_range_for_zone_movable(int nid,
+4061                                        unsigned long zone_type,
+4062                                        unsigned long node_start_pfn,
+4063                                        unsigned long node_end_pfn,
+4064                                unsigned long *zone_start_pfn,
+4065                                        unsigned long *zone_end_pfn)
+4066 {
+4067        /* Only adjust if ZONE_MOVABLE is on this node */
+4068        if (zone_movable_pfn[nid]) {
+4069        /* Size ZONE_MOVABLE */
+4070        if (zone_type == ZONE_MOVABLE){
+4071                *zone_start_pfn =zone_movable_pfn[nid];
+4072                *zone_end_pfn =min(node_end_pfn,
+4073                                arch_zone_highest_possible_pfn[movable_zone]);
+4074
+4075        /* Adjust for ZONE_MOVABLEstarting within this range */
+4076        } else if (*zone_start_pfn&lt; zone_movable_pfn[nid] &amp;&amp;
+4077                        *zone_end_pfn&gt; zone_movable_pfn[nid]) {
+4078                *zone_end_pfn =zone_movable_pfn[nid];
+4079
+4080        /* Check if this whole rangeis within ZONE_MOVABLE */
+4081        } else if (*zone_start_pfn&gt;= zone_movable_pfn[nid])
+4082                *zone_start_pfn = *zone_end_pfn;
+4083        }
+4084 }
+4068行只有在zone_movable_pfn[nid]数组中的先不为0，才考虑ZONE_MOVABLE类型区域。
+4070-4073行处理的是zone_typ等于ZONE_MOVABLE的情况。ZONE_MOVABLE区域范围的求法是：在系统中有个zone_movable_pfn数组，以节点号为下标可以确定每个节点的ZONE_MOVABLE类型区域的首页帧号，另外有个变量movable_zone，用来保存一个区域类型，表示ZONE_MOVABLE类型区域的最大页帧号和movable_zone类型的最大页帧号相等。
+全局变量movable_zone表示一个区域类型，表示ZONE_MOVABLE类型区域的最大页帧号和movable_zone类型的最大页帧号相等，也就数说ZONE_MOVAB区域的最大页帧号和同一节点的其他类型的一个区域的最大页帧号相等，这样如果zone_type不等于ZONE_MOVABLE，想像ZONE_MOVABLE区域从最大页帧向下扩展，则会出现三种情况：ZONE_MOVABLE在zone_typ区域内，zone_typ区域在ZONE_MOVABLE区域内，两个区域不相交。4076-4078处理的是ZONE_MOVABLE在区域zone_type内的情景，4081-4082行处理的是zone_typ区域在ZONE_MOVABLE区域内的情景。</code></pre><h2 id="absent-pages-in-range函数"><a href="#absent-pages-in-range函数" class="headerlink" title="absent_pages_in_range函数"></a>absent_pages_in_range函数</h2><pre><code>__absent_pages_in_range函数
+absent_pages_in_range函数计算区间不可用的页面数。absent_pages_in_range是调用__absent_pages_in_range来实现的， __absent_pages_in_range在mm/page_alloc.c中实现代码如下：
+4121unsigned long __meminit __absent_pages_in_range(int nid,
+4122                        unsigned longrange_start_pfn,
+4123                        unsigned longrange_end_pfn)
+4124 {
+4125        unsigned long nr_absent = range_end_pfn - range_start_pfn;
+4126        unsigned long start_pfn, end_pfn;
+4127        int i;
+4128
+4129        for_each_mem_pfn_range(i, nid, &amp;start_pfn, &amp;end_pfn, NULL) {
+4130        start_pfn = clamp(start_pfn,range_start_pfn, range_end_pfn);
+4131        end_pfn = clamp(end_pfn,range_start_pfn, range_end_pfn);
+4132        nr_absent -= end_pfn -start_pfn;
+4133        }
+4134        return nr_absent;
+4135 }
+用区间的总页面数减去在区间中所有空闲的页面数，就获得了区间中不可用的页面数。4125求的区间的页面数，4129-4133遍历每个在初始化分配器中的区段，减去区段在区间中的页面数。clamp函数返回三个参数的中间值。</code></pre><h2 id="get-pfn-range-for-nid函数"><a href="#get-pfn-range-for-nid函数" class="headerlink" title="get_pfn_range_for_nid函数"></a>get_pfn_range_for_nid函数</h2><pre><code>get_pfn_range_for_nid函数获得节点的页帧范围，在mm/page_alloc.c中实现，代码如下：
+4011 void __meminitget_pfn_range_for_nid(unsigned int nid,
+4012                unsigned long*start_pfn, unsigned long *end_pfn)
+4013 {
+4014        unsigned long this_start_pfn, this_end_pfn;
+4015        int i;
+4016
+4017        *start_pfn = -1UL;
+4018        *end_pfn = 0;
+4019
+4020        for_each_mem_pfn_range(i, nid, &amp;this_start_pfn, &amp;this_end_pfn,NULL) {
+4021        *start_pfn = min(*start_pfn,this_start_pfn);
+4022        *end_pfn = max(*end_pfn,this_end_pfn);
+4023        }
+4024
+4025        if (*start_pfn == -1UL)
+4026                *start_pfn = 0;
+4027 }</code></pre><h2 id="get-pfn-range-for-nid函数遍历memblock分配器在节点的每个空闲区域，获得最大和最小页帧号。"><a href="#get-pfn-range-for-nid函数遍历memblock分配器在节点的每个空闲区域，获得最大和最小页帧号。" class="headerlink" title="get_pfn_range_for_nid函数遍历memblock分配器在节点的每个空闲区域，获得最大和最小页帧号。"></a>get_pfn_range_for_nid函数遍历memblock分配器在节点的每个空闲区域，获得最大和最小页帧号。</h2><pre><code>zone_absent_pages_in_node函数
+zone_absent_pages_in_node函数获得区域的不可用的页面数
+4151 static unsigned long __meminitzone_absent_pages_in_node(int nid,
+4152                                unsigned long zone_type,
+4153                                        unsigned long *ignored)
+4154 {
+4155        unsigned long zone_low = arch_zone_lowest_possible_pfn[zone_type];
+4156        unsigned long zone_high = arch_zone_highest_possible_pfn[zone_type];
+4157        unsigned long node_start_pfn, node_end_pfn;
+4158        unsigned long zone_start_pfn, zone_end_pfn;
+4159
+4160        get_pfn_range_for_nid(nid, &amp;node_start_pfn, &amp;node_end_pfn);
+4161        zone_start_pfn = clamp(node_start_pfn, zone_low, zone_high);
+4162        zone_end_pfn = clamp(node_end_pfn, zone_low, zone_high);
+4163
+4164        adjust_zone_range_for_zone_movable(nid, zone_type,
+4165                node_start_pfn,node_end_pfn,
+4166                &amp;zone_start_pfn,&amp;zone_end_pfn);
+4167        return __absent_pages_in_range(nid, zone_start_pfn, zone_end_pfn);
+4168 }
+4155-4156行从arch_zone_lowest_possible_pfn数组获得区域最小页帧号，从arch_zone_highest_possible_pfn数组获得区域最大页帧号。
+4160-4162行把区域范围限制到节点范围中。
+4167调用__absent_pages_in_range求得区域范围中不可用的页面数。</code></pre><h2 id="zone-sizes-init函数"><a href="#zone-sizes-init函数" class="headerlink" title="zone_sizes_init函数"></a>zone_sizes_init函数</h2><pre><code>伙伴系统的初始化主要是指zone_sizes_init函数中完成的，调用zone_sizes_init函数的流程是：
+start_kernel () at init/main.c:496
+setup_arch () atarch/x86/kernel/setup.c:972
+paging_init () at arch/x86/mm/init_32.c:700
+zone_sizes_init () atarch/x86/mm/init.c:398
+zone_sizes_init函数在arch/x86/mm/init.c中实现，代码如下：
+397 void __init zone_sizes_init(void)
+398 {
+399        unsigned long max_zone_pfns[MAX_NR_ZONES];
+400
+401        memset(max_zone_pfns, 0, sizeof(max_zone_pfns));
+402
+403 #ifdef CONFIG_ZONE_DMA
+404        max_zone_pfns[ZONE_DMA]=MAX_DMA_PFN;
+405 #endif
+406 #ifdef CONFIG_ZONE_DMA32
+407        max_zone_pfns[ZONE_DMA32]       =MAX_DMA32_PFN;
+408 #endif
+409        max_zone_pfns[ZONE_NORMAL]      =max_low_pfn;
+410 #ifdef CONFIG_HIGHMEM
+411        max_zone_pfns[ZONE_HIGHMEM]     =max_pfn;
+412 #endif
+413
+414        free_area_init_nodes(max_zone_pfns);
+415 }
+max_zone_pfns是一数组定义了每个区域类型范围。max_low_pfn和max_pfn在前面已经确定。</code></pre><h2 id="free-area-init-nodes函数"><a href="#free-area-init-nodes函数" class="headerlink" title="free_area_init_nodes函数"></a>free_area_init_nodes函数</h2><pre><code>free_area_init_nodes在mm/page_alloc.c中实现，代码如下：
+4734 void __initfree_area_init_nodes(unsigned long *max_zone_pfn)
+4735 {
+4736        unsigned long start_pfn, end_pfn;
+4737        int i, nid;
+4738
+4739        /* Record where the zone boundaries are */
+4740        memset(arch_zone_lowest_possible_pfn, 0,
+4741                                sizeof(arch_zone_lowest_possible_pfn));
+4742        memset(arch_zone_highest_possible_pfn, 0,
+4743                                sizeof(arch_zone_highest_possible_pfn));
+4744        arch_zone_lowest_possible_pfn[0] = find_min_pfn_with_active_regions();
+4745        arch_zone_highest_possible_pfn[0] = max_zone_pfn[0];
+4746        for (i = 1; i &lt; MAX_NR_ZONES; i++) {
+4747        if (i == ZONE_MOVABLE)
+4748                continue;
+4749                arch_zone_lowest_possible_pfn[i] =
+4750                arch_zone_highest_possible_pfn[i-1];
+4751                arch_zone_highest_possible_pfn[i] =
+4752                max(max_zone_pfn[i],arch_zone_lowest_possible_pfn[i]);
+4753        }
+4754        arch_zone_lowest_possible_pfn[ZONE_MOVABLE] = 0;
+4755        arch_zone_highest_possible_pfn[ZONE_MOVABLE] = 0;
+4756
+4757        /* Find the PFNs that ZONE_MOVABLE begins at in each node */
+4758        memset(zone_movable_pfn, 0, sizeof(zone_movable_pfn));
+4759        find_zone_movable_pfns_for_nodes();
+4760
+4761        /* Print out the zone ranges */
+4762        printk(&quot;Zone PFN ranges:\n&quot;);
+4763        for (i = 0; i &lt; MAX_NR_ZONES; i++) {
+4764        if (i == ZONE_MOVABLE)
+4765                continue;
+4766        printk(&quot;  %-8s &quot;, zone_names[i]);
+4767        if(arch_zone_lowest_possible_pfn[i] ==
+4768                                arch_zone_highest_possible_pfn[i])
+4769                        printk(&quot;empty\n&quot;);
+4770        else
+4771                        printk(&quot;%0#10lx -&gt;%0#10lx\n&quot;,
+4772                                arch_zone_lowest_possible_pfn[i],
+4773                                arch_zone_highest_possible_pfn[i]);
+4774        }
+4775
+4776        /* Print out the PFNs ZONE_MOVABLE begins at in each node */
+4777        printk(&quot;Movable zone start PFN for each node\n&quot;);
+4778        for (i = 0; i &lt; MAX_NUMNODES; i++) {
+4779        if (zone_movable_pfn[i])
+4780                printk(&quot;  Node %d: %lu\n&quot;, i, zone_movable_pfn[i]);
+4781        }
+4782
+4783        /* Print out the early_node_map[] */
+4784        printk(&quot;Early memory PFN ranges\n&quot;);
+4785        for_each_mem_pfn_range(i, MAX_NUMNODES, &amp;start_pfn, &amp;end_pfn,&amp;nid)
+4786        printk(&quot;  %3d: %0#10lx -&gt; %0#10lx\n&quot;, nid,start_pfn, end_pfn);
+4787
+4788        /* Initialise every node */
+4789        mminit_verify_pageflags_layout();
+4790        setup_nr_node_ids();
+4791        for_each_online_node(nid) {
+4792        pg_data_t *pgdat = NODE_DATA(nid);
+4793        free_area_init_node(nid, NULL,
+4794                                find_min_pfn_for_node(nid), NULL);
+4795
+4796        /* Any memory on that node */
+4797        if(pgdat-&gt;node_present_pages)
+4798                        node_set_state(nid,N_HIGH_MEMORY);
+4799                check_for_regular_memory(pgdat);
+4800        }
+4801 }</code></pre><h2 id="free-area-init-nodes的代码比较长，但主要作了两项工作，确定节点的每个区域的上下界，然后对每个节点初始化。"><a href="#free-area-init-nodes的代码比较长，但主要作了两项工作，确定节点的每个区域的上下界，然后对每个节点初始化。" class="headerlink" title="free_area_init_nodes的代码比较长，但主要作了两项工作，确定节点的每个区域的上下界，然后对每个节点初始化。"></a>free_area_init_nodes的代码比较长，但主要作了两项工作，确定节点的每个区域的上下界，然后对每个节点初始化。</h2><pre><code>除ZONE_MOVABLE区域类型外，区域范围的确定方法是用两个数组，arch_zone_lowest_possible_pfn确定区域的最小页帧号，arch_zone_highest_possible_pfn确定区域的最大页帧号，一个区域的页帧号pfn所允许的范围是arch_zone_lowest_possible_pfn&lt;= pfn&lt;arch_zone_highest_possible_pfn[zone_type]。ZONE_MOVABLE的区域的范围的确定方法涉及到一个数组zone_movable_pfn和一个变量movable_zone，对一个节点号为nid的节点，ZONE_MOVABLE的页帧号pfn的区域是：zone_movable_pfn[nid]&lt;= pfn &lt; arch_zone_highest_possible_pfn[movable_zone]。
+4740-4753行求得从区域除ZONE_MOVABLE区域类型外的区域范围，从区域范围的求法可以知道，区域在节点中是依次连续的。
+4754-4759行求ZONE_MOVABLE区域的范围。其中关键是find_zone_movable_pfns_for_nodes函数，分析本函数后分析find_zone_movable_pfns_for_nodes函数。
+4762-4786行打印区域范围信息。
+4789行mminit_verify_pageflags_layout函数验证位码信息并输出一些调式信息。
+4790行调用setup_nr_node_ids函数设置节点总数。保存在变量nr_node_ids中。
+4791-4799一个循环，变量每个节点，4793行调用free_area_init_node函数对每个节点初始化，free_area_init_node函数中后面进行分析。4797-4799行主要是设置一些节点是否内存的状态信息。系统定义了一个枚举变量enum node_states，用来记录一个节点是否能用（N_POSSIBLE），是否在线（N_ONLINE），是否具有普通内存区域（N_NORMAL_MEMORY），是否有普通内存或高端内存内存（N_HIGH_MEMORY），是否有连接有cpu（N_CPU）。mm/page_alloc.c中有个节点掩码数组node_states[]对enum node_states的每项都有个节点掩码，来记录节点的状态信息。
+find_zone_movable_pfns_for_nodes函数
+find_zone_movable_pfns_for_nodes的工作是确定ZONE_MOVABLE区域的范围。在mm/page_alloc.c中实现，代码如下：
+4567 static void __initfind_zone_movable_pfns_for_nodes(void)
+4568 {
+4569        int i, nid;
+4570        unsigned long usable_startpfn;
+4571        unsigned long kernelcore_node, kernelcore_remaining;
+4572        /* save the state before borrow the nodemask */
+4573        nodemask_t saved_node_state = node_states[N_HIGH_MEMORY];
+4574        unsigned long totalpages = early_calculate_totalpages();
+4575        int usable_nodes = nodes_weight(node_states[N_HIGH_MEMORY]);
+4576
+4577        /*
+4578 * If movablecore was specified,calculate what size of
+4579 * kernelcore that corresponds so thatmemory usable for
+4580 * any allocation type is evenly spread.If both kernelcore
+4581 * and movablecore are specified, thenthe value of kernelcore
+4582 * will be used forrequired_kernelcore if it&apos;s greater than
+4583 * what movablecore would haveallowed.
+4584 */
+4585        if (required_movablecore) {
+4586        unsigned long corepages;
+4587
+4588        /*
+4589         * Round-up so thatZONE_MOVABLE is at least as large as what
+4590         * was requested by the user
+4591         */
+4592        required_movablecore =
+4593                        roundup(required_movablecore, MAX_ORDER_NR_PAGES);
+4594        corepages = totalpages -required_movablecore;
+4595
+4596        required_kernelcore = max(required_kernelcore,corepages);
+4597        }
+4598
+4599        /* If kernelcore was not specified, there is no ZONE_MOVABLE */
+4600        if (!required_kernelcore)
+4601        goto out;
+4602
+4603        /* usable_startpfn is the lowest possible pfn ZONE_MOVABLE can be at */
+4604        find_usable_zone_for_movable();
+4605        usable_startpfn = arch_zone_lowest_possible_pfn[movable_zone];
+4606
+4607 restart:
+4608        /* Spread kernelcore memory as evenly as possible throughout nodes */
+4609        kernelcore_node = required_kernelcore / usable_nodes;
+4610        for_each_node_state(nid, N_HIGH_MEMORY) {
+4611        unsigned long start_pfn,end_pfn;
+4612
+4613        /*
+4614         * Recalculate kernelcore_nodeif the division per node
+4615         * now exceeds what isnecessary to satisfy the requested
+4616         * amount of memory for thekernel
+4617         */
+4618        if (required_kernelcore &lt;kernelcore_node)
+4619                kernelcore_node =required_kernelcore / usable_nodes;
+4620
+4621        /*
+4622         * As the map is walked, wetrack how much memory is usable
+4623         * by the kernel usingkernelcore_remaining. When it is
+4624         * 0, the rest of the node isusable by ZONE_MOVABLE
+4625         */
+4626        kernelcore_remaining =kernelcore_node;
+4627
+4628        /* Go through each range ofPFNs within this node */
+4629                 for_each_mem_pfn_range(i, nid,&amp;start_pfn, &amp;end_pfn, NULL) {
+4630                unsigned longsize_pages;
+4631
+4632                start_pfn =max(start_pfn, zone_movable_pfn[nid]);
+4633                if (start_pfn &gt;=end_pfn)
+4634                        continue;
+4635
+4636                /* Account for what isonly usable for kernelcore */
+4637                if (start_pfn &lt;usable_startpfn) {
+4638                        unsigned longkernel_pages;
+4639                        kernel_pages =min(end_pfn, usable_startpfn)
+4640                                                                - start_pfn;
+4641
+4642                                kernelcore_remaining -= min(kernel_pages,
+4643                                                        kernelcore_remaining);
+4644                                required_kernelcore -= min(kernel_pages,
+4645                                                        required_kernelcore);
+4646
+4647                        /* Continue ifrange is now fully accounted */
+4648                        if (end_pfn&lt;= usable_startpfn) {
+4649
+4650                                /*
+4651                                 * Push zone_movable_pfn to the endso
+4652                                 *that if we have to rebalance
+4653                                 *kernelcore across nodes, we will
+4654                                 * notdouble account here
+4655                                 */
+4656                                        zone_movable_pfn[nid] = end_pfn;
+4657                                        continue;
+4658                        }
+4659                                start_pfn =usable_startpfn;
+4660                }
+4661
+4662                /*
+4663                 * The usable PFNrange for ZONE_MOVABLE is from
+4664                 *start_pfn-&gt;end_pfn. Calculate size_pages as the
+4665                 * number of pagesused as kernelcore
+4666                 */
+4667                size_pages = end_pfn -start_pfn;
+4668                if (size_pages &gt;kernelcore_remaining)
+4669                        size_pages =kernelcore_remaining;
+4670                zone_movable_pfn[nid]= start_pfn + size_pages;
+4671
+4672                /*
+4673                 * Some kernelcore hasbeen met, update counts and
+4674                 * break if thekernelcore for this node has been
+4675                 * satisified
+4676                 */
+4677                required_kernelcore -=min(required_kernelcore,
+4678                                                                size_pages);
+4679                kernelcore_remaining-= size_pages;
+4680                if(!kernelcore_remaining)
+4681                        break;
+4682        }
+4683        }
+4684
+4685        /*
+4686 * If there is stillrequired_kernelcore, we do another pass with one
+4687 * less node in the count. This willpush zone_movable_pfn[nid] further
+4688 * along on the nodes that still havememory until kernelcore is
+4689 * satisified
+4690 */
+4691        usable_nodes--;
+4692        if (usable_nodes &amp;&amp; required_kernelcore &gt; usable_nodes)
+4693        goto restart;
+4694
+4695        /* Align start of ZONE_MOVABLE on all nids to MAX_ORDER_NR_PAGES */
+4696        for (nid = 0; nid &lt; MAX_NUMNODES; nid++)
+4697        zone_movable_pfn[nid] =
+4698                        roundup(zone_movable_pfn[nid], MAX_ORDER_NR_PAGES);
+4699
+4700 out:
+4701        /* restore the node_state */
+4702        node_states[N_HIGH_MEMORY] = saved_node_state;
+4703 }
+这个函数的目的是计算zone_movable_pfn数组。在系统中有两个变量required_movablecore和required_kernelcore，这两个变量的值是通过命令行传进来的，变量required_movablecore通知内核保留给ZONE_MOVABLE区域的页面数，required_kernelcore是需要保留的非ZONE_MOVABLE区域的页面数。
+4585-4601行，由4585行和4600行知道，如果这两个数据都没有通过命令行设置，则直接跳到out标号，也就是ZONE_MOVABLE区域为空。corepages变量由early_calculate_totalpages初始化，是空闲内存的总数，roundup(x, y)是一个宏，返回大于等于x的是y的倍数的第一个数。4592-4593行设置required_movablecore是MAX_ORDER_NR_PAGES的倍数，4596行如果设置为指定的required_kernelcore和剩余的空闲的区域required_movablecore页后的页面，其实也就是让页面优先用做非ZONE_MOVABLE区域的页面数。
+在4602行的后面required_movablecore变量没有再出现，后面的代码主要做了两部分工作，先选定一个区域，选的方法是从高到低的第一个不空的非ZONE_MOVABLE区域，然后在这个区域的低端往上收缩，保证非ZONE_MOVABLE区域的页面数达到required_kernelcore。
+4604行调用函数find_usable_zone_for_movable设置变量movable_zone，movable_zone被设置的值就是最高不空的非ZONE_MOVABLE区域。
+4605行设置usable_startpfn变量的值，usable_startpfn也就是第一个能作为ZONE_MOVABL区域的页帧的值。
+4609行设置kernelcore_node变量的值，usable_nodes一个商数，初始化为是具有ZONE_MOVABLE区域的节点数，在第一次扫描中kernelcore_node初始化为对每个节点是均匀保留非ZONE_MOVABLE区域页面的，以后每次扫描会自减usable_node。在计算zone_movable_pfn数组时，会对一个节点集合遍历，kernelcore_node变量是每个节点应该保留给非ZONE_MOVABLE区域的页面数。        
+4610行对在节点掩码node_states[N_HIGH_MEMORY]中可用的每个节点进行扫描。
+4618-4619行如果required_kernelcore &lt; kernelcore_node重新设置kernelcore_node变量的值
+4626行kernelcore_remaining变量是在本次对节点的扫描要变量的页面数，赋值为required_kernelcore。
+4629行对每个初始化内存分配器中的空闲区域进行遍历。
+4632-4634行zone_movable_pfn[nid]是本次扫描节点ZONE_MOVABLE区域的最小页帧号，如果end_pfn &lt;=zone_movable_pfn[nid]或者end_pfn &lt;=start_pfn就是本次扫描的空闲区段不再ZONE_MOVABLE区域范围内或者是空区段，继续扫描下一个区段。
+4637行，start_pfn是本次扫描的空闲区段的首页帧，usable_startpfn是ZONE_MOVABLE区域锁允许的最小帧。start_pfn&lt; usable_startpfn意味着start_pfn --&gt;usable_startpfn的帧是属于非ZONE_MOVABLE区域的。4638-4645在所要保留的页面数中减去这段包含的页面。
+4648行end_pfn &lt;= usable_startpfn表示正空闲区段都属于非ZONE_MOVABLE区域。4656行zone_movable_pfn[nid] = end_pfn，如果保留给非ZONE_MOVABLE区域的区域已经足够，用本次扫描的空闲区段尾做本节点的ZONE_MOVABLE区域首页帧号。注意一点区段是包含首页帧号start_pfn，不包含尾帧end_pfn。
+代码执行到4659行表示end_pfn &gt;usable_startpfn，执行start_pfn = usable_startpfn把usable_startpfnàend_pfn当成一个空闲区域执行后面的代码。
+4667-4681行，执行到这段代码，表示整个区段都在都是可以作为ZONE_MOVABLE页面，这段代码中这个空闲区段中保留非ZONE_MOVABLE区域页面。
+4691-4693行自减商数usable_nodes，并测试usable_nodes&amp;&amp; required_kernelcore &gt; usable_nodes，这样可以比较无限循环，并在每个节点需要保留的非ZONE_MOVABLE区域页的数量大于1时，重新扫描。
+4696-4698行对齐ZONE_MOVABLE区域的首页帧。
+4702恢复node_state数组。</code></pre><h2 id="free-area-init-node函数"><a href="#free-area-init-node函数" class="headerlink" title="free_area_init_node函数"></a>free_area_init_node函数</h2><pre><code>free_area_init_node函数初始化节点，在mm/page_alloc.c中实现，代码如下：
+4420 void __paginginitfree_area_init_node(int nid, unsigned long *zones_size,
+4421        unsigned long node_start_pfn,unsigned long *zholes_size)
+4422 {
+4423        pg_data_t *pgdat = NODE_DATA(nid);
+4424
+4425        pgdat-&gt;node_id = nid;
+4426        pgdat-&gt;node_start_pfn = node_start_pfn;
+4427        calculate_node_totalpages(pgdat, zones_size, zholes_size);
+4428
+4429        alloc_node_mem_map(pgdat);
+4430 #ifdef CONFIG_FLAT_NODE_MEM_MAP
+4431        printk(KERN_DEBUG &quot;free_area_init_node: node %d, pgdat %08lx,node_mem_map %08lx\n&quot;,
+4432        nid, (unsigned long)pgdat,
+4433        (unsignedlong)pgdat-&gt;node_mem_map);
+4434 #endif
+4435
+4436        free_area_init_core(pgdat, zones_size, zholes_size);
+4437 }
+free_area_init_node函数调用calculate_node_totalpages对节点长度和节点总可用页面数进行初始化。calculate_node_totalpages函数是通过调用zone_spanned_pages_in_node和
+zone_absent_pages_in_node函数实现的，这两个函数上面已经分析过。
+alloc_node_mem_map是对节点的page管理数据初始化。其他的初始化工作在free_area_init_core函数中完成。
+alloc_node_mem_map函数
+alloc_node_mem_map函数分配节点的page管理数组的内存，在mm/page_alloc.c中实现，代码如下：
+4379 static void __init_refokalloc_node_mem_map(struct pglist_data *pgdat)
+4380 {
+4381        /* Skip empty nodes */
+4382        if (!pgdat-&gt;node_spanned_pages)
+4383        return;
+4384
+4385 #ifdef CONFIG_FLAT_NODE_MEM_MAP
+4386        /* ia64 gets its own node_mem_map, before this, without bootmem */
+4387        if (!pgdat-&gt;node_mem_map) {
+4388        unsigned long size, start,end;
+4389        struct page *map;
+4390
+4391        /*
+4392         * The zone&apos;s endpoints aren&apos;trequired to be MAX_ORDER
+4393         * aligned but thenode_mem_map endpoints must be in order
+4394                 * for the buddyallocator to function correctly.
+4395         */
+4396        start =pgdat-&gt;node_start_pfn &amp; ~(MAX_ORDER_NR_PAGES - 1);
+4397        end = pgdat-&gt;node_start_pfn+ pgdat-&gt;node_spanned_pages;
+4398                end = ALIGN(end,MAX_ORDER_NR_PAGES);
+4399        size =  (end - start) * sizeof(struct page);
+4400        map =alloc_remap(pgdat-&gt;node_id, size);
+4401        if (!map)
+4402                map = alloc_bootmem_node_nopanic(pgdat,size);
+4403        pgdat-&gt;node_mem_map = map +(pgdat-&gt;node_start_pfn - start);
+4404        }
+4405 #ifndef CONFIG_NEED_MULTIPLE_NODES
+4406        /*
+4407 * With no DISCONTIG, the globalmem_map is just set as node 0&apos;s
+4408 */
+4409        if (pgdat == NODE_DATA(0)) {
+4410        mem_map =NODE_DATA(0)-&gt;node_mem_map;
+4411 #ifdef CONFIG_HAVE_MEMBLOCK_NODE_MAP
+4412        if (page_to_pfn(mem_map) !=pgdat-&gt;node_start_pfn)
+4413                mem_map -= (pgdat-&gt;node_start_pfn -ARCH_PFN_OFFSET);
+4414 #endif /*CONFIG_HAVE_MEMBLOCK_NODE_MAP */
+4415        }
+4416 #endif
+4417 #endif /* CONFIG_FLAT_NODE_MEM_MAP */
+4418 }
+在节点结构pglist_data中，成员node_start_pfn是节点的首页帧号，node_spanned_pages是包含中间不可用页面的节点的长度。node_mem_map指向节点page结构管理数组，并且指向节点首页的page结构。
+4388-4403行的代码执行逻辑是：计算一个页帧范围，这个范围是包含节点的所有页面的最小范围，并且起始页帧和尾页帧都是按最大块对齐的。然后按这个范围来分配存放page结构数组的内存。分配完后（4403行）让node_mem_map成员指向node_start_pfn页帧的page结构地址。
+对page数组的内存是调用alloc_remap和alloc_bootmem_node_nopanic进行分配的，这两个函数中初始化内存分频器章节中介绍。
+4410行，在较早的版本，page管理数组的首地址是存放在变量mem_map中的，现在这个变量指向第零个节点的page管理数组
+4412-4413行对page管理结构地址到页帧的转换进行校正。</code></pre><h2 id="free-area-init-core函数"><a href="#free-area-init-core函数" class="headerlink" title="free_area_init_core函数"></a>free_area_init_core函数</h2><pre><code>free_area_init_core是伙伴系统初始化的核心函数，在mm/page_alloc.c中实现，代码如下：
+4291 static void __paginginitfree_area_init_core(struct pglist_data *pgdat,
+4292        unsigned long *zones_size,unsigned long *zholes_size)
+4293 {
+4294        enum zone_type j;
+4295        int nid = pgdat-&gt;node_id;
+4296        unsigned long zone_start_pfn = pgdat-&gt;node_start_pfn;
+4297        int ret;
+4298
+4299        pgdat_resize_init(pgdat);
+4300        pgdat-&gt;nr_zones = 0;
+4301        init_waitqueue_head(&amp;pgdat-&gt;kswapd_wait);
+4302        pgdat-&gt;kswapd_max_order = 0;
+4303        pgdat_page_cgroup_init(pgdat);
+4304
+4305        for (j = 0; j &lt; MAX_NR_ZONES; j++) {
+4306        struct zone *zone =pgdat-&gt;node_zones + j;
+4307        unsigned long size, realsize,memmap_pages;
+4308        enum lru_list lru;
+4309
+4310        size = zone_spanned_pages_in_node(nid,j, zones_size);
+4311        realsize = size -zone_absent_pages_in_node(nid, j,
+4312                                                                zholes_size);
+4313
+4314        /*
+4315         * Adjust realsize so that itaccounts for how much memory
+4316         * is used by this zone formemmap. This affects the watermark
+4317         * and per-cpu initialisations
+4318         */
+4319        memmap_pages =
+4320                PAGE_ALIGN(size * sizeof(structpage)) &gt;&gt; PAGE_SHIFT;
+4321        if (realsize &gt;=memmap_pages) {
+4322                realsize -=memmap_pages;
+4323                if (memmap_pages)
+4324                        printk(KERN_DEBUG
+4325                                       &quot;  %s zone: %lu pages usedfor memmap\n&quot;,
+4326                                       zone_names[j], memmap_pages);
+4327        } else
+4328                printk(KERN_WARNING
+4329                        &quot;  %s zone: %lu pages exceeds realsize%lu\n&quot;,
+4330                        zone_names[j],memmap_pages, realsize);
+4331
+4332        /* Account for reserved pages*/
+4333        if (j == 0 &amp;&amp; realsize&gt; dma_reserve) {
+4334                realsize -=dma_reserve;
+4335                printk(KERN_DEBUG&quot;  %s zone: %lu pagesreserved\n&quot;,
+4336                                        zone_names[0], dma_reserve);
+4337        }
+4338
+4339        if (!is_highmem_idx(j))
+4340                nr_kernel_pages +=realsize;
+4341        nr_all_pages += realsize;
+4342
+4343        zone-&gt;spanned_pages = size;
+4344        zone-&gt;present_pages = realsize;
+4345 #ifdef CONFIG_NUMA
+4346        zone-&gt;node = nid;
+4347        zone-&gt;min_unmapped_pages =(realsize*sysctl_min_unmapped_ratio)
+4348                                                / 100;
+4349        zone-&gt;min_slab_pages =(realsize * sysctl_min_slab_ratio) / 100;
+4350 #endif
+4351        zone-&gt;name = zone_names[j];
+4352                spin_lock_init(&amp;zone-&gt;lock);
+4353                spin_lock_init(&amp;zone-&gt;lru_lock);
+4354        zone_seqlock_init(zone);
+4355        zone-&gt;zone_pgdat = pgdat;
+4356
+4357        zone_pcp_init(zone);
+4358        for_each_lru(lru)
+4359                        INIT_LIST_HEAD(&amp;zone-&gt;lruvec.lists[lru]);
+4360        zone-&gt;reclaim_stat.recent_rotated[0]= 0;
+4361                zone-&gt;reclaim_stat.recent_rotated[1] = 0;
+4362                zone-&gt;reclaim_stat.recent_scanned[0] = 0;
+4363                zone-&gt;reclaim_stat.recent_scanned[1] = 0;
+4364        zap_zone_vm_stats(zone);
+4365                zone-&gt;flags = 0;
+4366        if (!size)
+4367                continue;
+4368
+4369                set_pageblock_order(pageblock_default_order());
+4370        setup_usemap(pgdat, zone,size);
+4371        ret =init_currently_empty_zone(zone, zone_start_pfn,
+4372                                                size, MEMMAP_EARLY);
+4373        BUG_ON(ret);
+4374        memmap_init(size, nid, j,zone_start_pfn);
+4375        zone_start_pfn += size;
+4376        }
+4377 }
+这个函数的代码比较长，但比较简单，就一些变量，锁和链表的初始化。对这个函数本身就不做分析了，而对函数中调用的memmap_init做些介绍，memmap_init是一个宏定义如下：
+#define memmap_init(size, nid, zone,start_pfn) \
+memmap_init_zone((size),(nid), (zone), (start_pfn), MEMMAP_EARLY)。
+是对memmap_init_zone函数的调用。</code></pre><h2 id="memmap-init-zone函数"><a href="#memmap-init-zone函数" class="headerlink" title="memmap_init_zone函数"></a>memmap_init_zone函数</h2><pre><code>memmap_init_zone对一个区域的page管理结构的初始化，在mm/page_alloc.c中实现，代码如下：
+3619 * done. Non-atomic initialization, single-pass.
+3620 */
+3621 void __meminitmemmap_init_zone(unsigned long size, int nid, unsigned long zone,
+3622                unsigned long start_pfn,enum memmap_context context)
+3623 {
+3624        struct page *page;
+3625        unsigned long end_pfn = start_pfn + size;
+3626        unsigned long pfn;
+3627        struct zone *z;
+3628
+3629        if (highest_memmap_pfn &lt; end_pfn - 1)
+3630        highest_memmap_pfn = end_pfn -1;
+3631
+3632        z = &amp;NODE_DATA(nid)-&gt;node_zones[zone];
+3633        for (pfn = start_pfn; pfn &lt; end_pfn; pfn++) {
+3634        /*
+3635         * There can be holes inboot-time mem_map[]s
+3636         * handed to thisfunction.  They do not
+3637         * exist on hotplugged memory.
+3638         */
+3639        if (context == MEMMAP_EARLY) {
+3640                if (!early_pfn_valid(pfn))
+3641                        continue;
+3642                if(!early_pfn_in_nid(pfn, nid))
+3643                        continue;
+3644        }
+3645        page = pfn_to_page(pfn);
+3646        set_page_links(page, zone, nid, pfn);
+3647        mminit_verify_page_links(page,zone, nid, pfn);
+3648        init_page_count(page);
+3649        reset_page_mapcount(page);
+3650        SetPageReserved(page);
+3651                /*
+3652         * Mark the block movable sothat blocks are reserved for
+3653         * movable at startup. Thiswill force kernel allocations
+3654         * to reserve their blocksrather than leaking throughout
+3655         * the address space duringboot when many long-lived
+3656         * kernel allocations aremade. Later some blocks near
+3657         * the start are markedMIGRATE_RESERVE by
+3658         * setup_zone_migrate_reserve()
+3659         *
+3660         * bitmap is created forzone&apos;s valid pfn range. but memmap
+3661         * can be created for invalidpages (for alignment)
+3662         * check here not to callset_pageblock_migratetype() against
+3663         * pfn out of zone.
+3664         */
+3665        if ((z-&gt;zone_start_pfn&lt;= pfn)
+3666            &amp;&amp; (pfn &lt;z-&gt;zone_start_pfn + z-&gt;spanned_pages)
+3667            &amp;&amp; !(pfn &amp;(pageblock_nr_pages - 1)))
+3668                        set_pageblock_migratetype(page, MIGRATE_MOVABLE);
+3669
+3670                INIT_LIST_HEAD(&amp;page-&gt;lru);
+3671 #ifdef WANT_PAGE_VIRTUAL
+3672        /* The shift won&apos;t overflowbecause ZONE_NORMAL is below 4G. */
+3673        if (!is_highmem_idx(zone))
+3674                set_page_address(page,__va(pfn &lt;&lt; PAGE_SHIFT));
+3675 #endif
+3676        }
+3677 }
+3629-3630行highest_memmap_pfn是存在page管理结构的最大的页帧号，如果本管理区的最大的存在page管理结构的最大的页帧号大于highest_memmap_pfn，就需要更新highest_memmap_pfn。
+3632行获得区域结构地址。
+3633对区域的所有页帧进行遍历。
+3640-3641行检查页帧号是否合法，也就是要小于系统最大的页帧号，大于系统允许的最小的页帧。
+3642-3643行检查页帧pfn是否属于节点nid。
+3645行获得pfn帧的page管理结构地址。
+3646行调用set_page_links函数设置页面的一些链接，主要包含页面所在节点，页面的区域类型，页面所在段。这样信息都是保存在page结构的成员flags中，每种信息占用一些位。3647行对设置的页面所在节点，页面的区域类型，页面所在段的信息进行验证，如果有错误输出一些调试信息。
+3648初始引用数信息，3649初始化映射数信息。
+3665-3668行，对每个最大块的首帧，调用set_pageblock_migratetype函数设置迁移类型信息，set_pageblock_migratetype函数在伙伴系统的内存迁移一节有分析。
+3647行设置页面映射的虚拟地址。
+====区域列表的初始化</code></pre><h2 id="build-all-zonelists函数"><a href="#build-all-zonelists函数" class="headerlink" title="build_all_zonelists函数"></a>build_all_zonelists函数</h2><pre><code>区域列表的初始化由函数build_all_zonelists来完成，build_all_zonelists函数的进入路径是：
+start_kernel() at init/main.c:504
+build_all_zonelists() at mm/page_alloc.c:3409
+build_all_zonelists在mm/page_alloc.c中实现，代码如下：
+3408 void __refbuild_all_zonelists(void *data)
+3409 {
+3410set_zonelist_order();
+3411
+3412if (system_state == SYSTEM_BOOTING) {
+3413        __build_all_zonelists(NULL);
+3414        mminit_verify_zonelist();
+3415                cpuset_init_current_mems_allowed();
+3416} else {
+3417        /* we have to stop all cpus toguarantee there is no user
+3418           of zonelist */
+3419 #ifdefCONFIG_MEMORY_HOTPLUG
+3420        if (data)
+3421                        setup_zone_pageset((struct zone *)data);
+3422 #endif
+3423                stop_machine(__build_all_zonelists, NULL, NULL);
+3424        /* cpuset refresh routineshould be here */
+3425}
+3426vm_total_pages =nr_free_pagecache_pages();
+3427/*
+3428 * Disable grouping by mobility if thenumber of pages in the
+3429 * system is too low to allow themechanism to work. It would be
+3430 * more accurate, but expensive tocheck per-zone. This check is
+3431 * made on memory-hotadd so a system canstart with mobility
+3432 * disabled and enable it later
+3433 */
+3434if (vm_total_pages &lt;(pageblock_nr_pages * MIGRATE_TYPES))
+3435                page_group_by_mobility_disabled = 1;
+3436else
+3437        page_group_by_mobility_disabled= 0;
+3438
+3439printk(&quot;Built %i zonelists in %sorder, mobility grouping %s.  &quot;
+3440        &quot;Total pages:%ld\n&quot;,
+3441                nr_online_nodes,
+3442                zonelist_order_name[current_zonelist_order],
+3443                        page_group_by_mobility_disabled ? &quot;off&quot; : &quot;on&quot;,
+3444                vm_total_pages);
+3445 #ifdefCONFIG_NUMA
+3446printk(&quot;Policy zone: %s\n&quot;,zone_names[policy_zone]);
+3447 #endif
+3448 }
+在初始化过程中，函数会进入3413-3415行代码运行。
+3413行区域列表的初始的主体工作是在__build_all_zonelists中完成的。介绍完本函数后介绍__build_all_zonelists函数。
+3414行调用mminit_verify_zonelist函数做一些验证工作。
+在伙伴系统的内存分配一节中，我们把伙伴系统内存分为三个阶段，而第一阶段的主要任务是确定区域列表和节点掩码。在进程结构中有个成员mems_allowed，是一个节点掩码，表示进程所允许分配内存的节点，只有一个节点包含在进程的mems_allowed中，并且在内存策略也允许在这个节点进行分配时才会到这个节点进行内存分配。cpuset_init_current_mems_allowed设置进程的mems_allowed成员包含所有节点。
+3626行，nr_free_pagecache_pages返回的是对所有区域可用页面数减去高水位线后的的剩余页面数相加的值，这个值作为剩余可用页面数。
+3434行，如果剩余可用页面小于pageblock_nr_pages * MIGRATE_TYPES，也就是说如果不能满足每个迁移类型都包含一个迁移块。则禁用迁移类型，禁用迁移类型后所有页面的迁移都会迁移到MIGRATE_UNMOVABLE迁移类型，也就是不可迁移类型。</code></pre><h2 id="build-all-zonelists函数-1"><a href="#build-all-zonelists函数-1" class="headerlink" title="__build_all_zonelists函数"></a>__build_all_zonelists函数</h2><pre><code>__build_all_zonelists在mm/page_alloc.c中实现，代码如下：
+3356 static__init_refok int __build_all_zonelists(void *data)
+3357 {
+3358int nid;
+3359int cpu;
+3360
+3361 #ifdefCONFIG_NUMA
+3362memset(node_load, 0,sizeof(node_load));
+3363 #endif
+3364for_each_online_node(nid) {
+3365        pg_data_t *pgdat =NODE_DATA(nid);
+3366
+3367        build_zonelists(pgdat);
+3368                 build_zonelist_cache(pgdat);
+3369}
+3370
+3371/*
+3372 * Initialize the boot_pagesets thatare going to be used
+3373 * for bootstrapping processors. Thereal pagesets for
+3374 * each zone will be allocated laterwhen the per cpu
+3375 * allocator is available.
+3376 *
+3377 * boot_pagesets are used also forbootstrapping offline
+3378 * cpus if the system is alreadybooted because the pagesets
+3379 * are needed to initialize allocatorson a specific cpu too.
+3380 * F.e. the percpu allocator needs thepage allocator which
+3381 * needs the percpu allocator in orderto allocate its pagesets
+3382 * (a chicken-egg dilemma).
+3383 */
+3384for_each_possible_cpu(cpu) {
+3385                setup_pageset(&amp;per_cpu(boot_pageset, cpu), 0);
+3386
+3387 #ifdefCONFIG_HAVE_MEMORYLESS_NODES
+3388        /*
+3389         * We now know the &quot;localmemory node&quot; for each node--
+3390         * i.e., the node of the firstzone in the generic zonelist.
+3391         * Set up numa_mem percpuvariable for on-line cpus.  During
+3392         * boot, only the boot cpushould be on-line;  we&apos;ll init the
+3393                  * secondary cpus&apos; numa_mem as theycome on-line.  During
+3394         * node/memory hotplug, we&apos;llfixup all on-line cpus.
+3395         */
+3396        if (cpu_online(cpu))
+3397                set_cpu_numa_mem(cpu,local_memory_node(cpu_to_node(cpu)));
+3398 #endif
+3399}
+3400
+3401return 0;
+3402 }
+区域列表是区域的有序集合，设置区域列表的目的是为了从列表中选择一个区域，在区域中进行内存分配。
+有几个因素会影响区域的选择：
+1：一个是区域在区域列表中的顺序。
+2：还有一个是分配标志位指定的最大区域类型，一些分配只能在低端内存中分配，如一些只支持低端内存访问的设备驱动程序。当选择一个区域时，要考虑区域的类型，只有区域类型小于等于标志位指定的最大区域类型，才选择这个区域。
+3：在分配的时候，如果快速通道分配内存失败，在慢速通道中会记录区域内存不充足缓存信息，在内存的时候会检查内存内存是否充足的缓存信息，这会影响区域的选择。
+4: 节点掩码也会影响区域的选择，只会选择在节点掩码集合中的区域。
+考虑这几个因素，我们就可以解释区域列表的结构zonelist的定义了，为什么在列表中定义一个zoneref数组，而不直接定义一个zone的数组指针？zoneref结构包含一个zone结构指针zone和zone_idx是区域的类型，考虑第二个因素，在我们扫描区域列表的一项，需要的区域类型直接可以从zoneref成员的zone_idx得到。
+而zonelist的成员zlcache是个zonelist_cache结构。用来保存区域的内存是否充足信息，对区域列表中的每个区域，zonelist_cache结构的成员fullzones，是个位图数组，和zonelist结构的zoneref数组是对应的，用来表示zoneref数组索引的项内存是否充足，z_to_n用来实现从数组索引到节点号的转换，在zlc_zone_worth_trying函数中会用到这些参数。
+zonelist的成员zlcache_ptr指向实际可用的zonelist_cache结构地址，zlcache_ptr不总是指向zonelist的zonelist_cache。
+3364-3369行，遍历所有在线的节点，调用函数build_zonelists初始化节点的区域列表，每个节点包含若干个区域列表。调用build_zonelist_cache初始化节点的内存是否充足缓存信息。
+3384-3399行，编译所有可用的cpu，调用setup_pageset初始化每cpu页缓存信息。3396-3397行对在线的cpu，调用set_cpu_numa_mem设置cpu所在节点。
+在后面只介绍build_zonelists的指向流程，build_zonelist_cache和其他部分不分析了。</code></pre><h2 id="build-zonelists函数"><a href="#build-zonelists函数" class="headerlink" title="build_zonelists函数"></a>build_zonelists函数</h2><pre><code>build_zonelists初始化一个节点的区域列表，在mm/page_alloc.c中实现，代码如下：
+3286 static void build_zonelists(pg_data_t*pgdat)
+3287 {
+3288        int node, local_node;
+3289        enum zone_type j;
+3290        struct zonelist *zonelist;
+3291
+3292        local_node =pgdat-&gt;node_id;
+3293
+3294        zonelist = &amp;pgdat-&gt;node_zonelists[0];
+3295        j = build_zonelists_node(pgdat, zonelist, 0, MAX_NR_ZONES - 1);
+3296
+3297        /*
+3298 * Now we build the zonelist so thatit contains the zones
+3299 * of all the other nodes.
+3300 * We don&apos;t want to pressure aparticular node, so when
+3301 * building the zones for node N, wemake sure that the
+3302 * zones coming right after the localones are those from
+3303 * node N+1 (modulo N)
+3304 */
+3305        for (node = local_node + 1; node &lt; MAX_NUMNODES; node++) {
+3306        if (!node_online(node))
+3307                continue;
+3308        j = build_zonelists_node(NODE_DATA(node),zonelist, j,
+3309                                                        MAX_NR_ZONES - 1);
+3310        }
+3311        for (node = 0; node &lt; local_node; node++) {
+3312        if (!node_online(node))
+3313                continue;
+3314        j =build_zonelists_node(NODE_DATA(node), zonelist, j,
+3315                                                        MAX_NR_ZONES - 1);
+3316        }
+3317
+3318        zonelist-&gt;_zonerefs[j].zone = NULL;
+3319        zonelist-&gt;_zonerefs[j].zone_idx = 0;
+3320 }
+build_zonelists_node函数把一个包含的区域编译到区域列表。
+这个函数的重点是区域列表初始化的顺序，local_node是本节点的号码，从3295，3305，3311行我们可以知道，对在线的节点点，对节点的初始化顺序是local_node, local_node+1,…,MAX_NR_ZONES – 1,0,…, local_node-1。
+3318-3319我们知道对最后一个区域索引项，索引的是空区域，而前面的每个区域索引项都指向非空区域，这样我们可以判断区域列表的结束。</code></pre><h2 id="build-zonelists-node函数"><a href="#build-zonelists-node函数" class="headerlink" title="build_zonelists_node函数"></a>build_zonelists_node函数</h2><pre><code>build_zonelists_node把一个节点的区域编译到区域列表，把节点pgdat中类型小于等于zone_type的区域以nr_zones项开始编译到区域列表zonelist。build_zonelists_node函数在mm/page_alloc.c中实现，代码如下：
+2860 static intbuild_zonelists_node(pg_data_t *pgdat, struct zonelist *zonelist,
+2861                        int nr_zones,enum zone_type zone_type)
+2862 {
+2863        struct zone *zone;
+2864
+2865        BUG_ON(zone_type &gt;= MAX_NR_ZONES);
+2866        zone_type++;
+2867
+2868        do {
+2869        zone_type--;
+2870        zone = pgdat-&gt;node_zones +zone_type;
+2871        if (populated_zone(zone)) {
+2872                zoneref_set_zone(zone,
+2873                                &amp;zonelist-&gt;_zonerefs[nr_zones++]);
+2874                        check_highest_zone(zone_type);
+2875        }
+2876
+2877        } while (zone_type);
+2878        return nr_zones;
+2879 }
+区域被编译的顺序和区域类型是一致的，populated_zone是判断区域是否具有可用页面，有可用页返回真，否则返回假。check_highest_zone更新policy_zone变量，policy_zone变量保存在系统中能用的非ZONE_MOVABLE的最大的区域类型。</code></pre>
+      
+       <hr><span style="font-style: italic;color: gray;"> 转载请注明来源，欢迎对文章中的引用来源进行考证，欢迎指出任何有错误或不够清晰的表达。可以在下面评论区评论，也可以邮件至 ancjf@163.com </span>
+    </div>
+</article>
+
+
+<p>
+    <a  class="dashang" onclick="dashangToggle()">赏</a>
+</p>
+
+
+<div class="article_copyright">
+    <p><span class="copy-title">文章标题:</span>linux 源代码分析5:伙伴系统初始化</p>
+    
+    <p><span class="copy-title">本文作者:</span><a  title="ancjf">ancjf</a></p>
+    <p><span class="copy-title">发布时间:</span>2013-05-22, 21:59:15</p>
+    <p><span class="copy-title">最后更新:</span>2020-04-18, 12:07:56</p>
+    <span class="copy-title">原始链接:</span><a class="post-url" href="/2013/05/22/linux-3-4-10-%E5%86%85%E6%A0%B8%E5%86%85%E5%AD%98%E7%AE%A1%E7%90%86%E6%BA%90%E4%BB%A3%E7%A0%81%E5%88%86%E6%9E%905-%E4%BC%99%E4%BC%B4%E7%B3%BB%E7%BB%9F%E5%88%9D%E5%A7%8B%E5%8C%96/" title="linux 源代码分析5:伙伴系统初始化">http://ancjf.com/2013/05/22/linux-3-4-10-%E5%86%85%E6%A0%B8%E5%86%85%E5%AD%98%E7%AE%A1%E7%90%86%E6%BA%90%E4%BB%A3%E7%A0%81%E5%88%86%E6%9E%905-%E4%BC%99%E4%BC%B4%E7%B3%BB%E7%BB%9F%E5%88%9D%E5%A7%8B%E5%8C%96/</a>
+    <p>
+        <span class="copy-title">版权声明:</span><i class="fa fa-creative-commons"></i> <a rel="license noopener" href="http://creativecommons.org/licenses/by-nc-sa/4.0/" target="_blank" title="CC BY-NC-SA 4.0 International" target = "_blank">"署名-非商用-相同方式共享 4.0"</a> 转载请保留原文链接及作者。
+    </p>
+</div>
+
+
+
+
+
+    
+
+
+
+
+    </div>
+    <div class="copyright">
+        <p class="footer-entry">©2016-2019 Yelog</p>
+<p class="footer-entry">Built with <a href="https://hexo.io/" target="_blank">Hexo</a> and <a href="https://github.com/yelog/hexo-theme-3-hexo" target="_blank">3-hexo</a> theme</p>
+
+    </div>
+    <div class="full-toc">
+        <button class="full"><span class="min "></span></button>
+<button class="post-toc-menu"><span class="post-toc-menu-icons"></span></button>
+<div class="post-toc"><span class="post-toc-title">目录</span>
+    <div class="post-toc-content">
+
+    </div>
+</div>
+<a class="" id="rocket" ></a>
+
+    </div>
+</div>
+<div class="acParent"></div>
+
+<div class="hide_box" onclick="dashangToggle()"></div>
+<div class="shang_box">
+    <a class="shang_close"  onclick="dashangToggle()">×</a>
+    <div class="shang_tit">
+        <p>喜欢就点赞,疼爱就打赏</p>
+    </div>
+    <div class="shang_payimg">
+        <div class="pay_img">
+            <img src="/img/alipay.jpg" class="alipay" title="扫码支持">
+            <img src="/img/weixin.jpg" class="weixin" title="扫码支持">
+        </div>
+    </div>
+    <div class="shang_payselect">
+        <span><label><input type="radio" name="pay" checked value="alipay">支付宝</label></span><span><label><input type="radio" name="pay" value="weixin">微信</label></span>
+    </div>
+</div>
+
+
+</body>
+<script src="/js/jquery.pjax.js?v=1.0.1" ></script>
+
+<script src="/js/script.js?v=1.0.1" ></script>
+<script>
+    var img_resize = 'default';
+    /*作者、标签的自动补全*/
+    $(function () {
+        $('.search').AutoComplete({
+            'data': ['#linux','#内存管理','#伙伴系统','#Slab','#内存释放','#伙伴系统初始化','#内存分配',],
+            'itemHeight': 20,
+            'width': 418
+        }).AutoComplete('show');
+    })
+    function initArticle() {
+        /*渲染对应的表格样式*/
+        
+            $(".post .pjax table").addClass("green_title");
+        
+
+        /*渲染打赏样式*/
+        
+        $("input[name=pay]").on("click", function () {
+            if($("input[name=pay]:checked").val()=="weixin"){
+                $(".shang_box .shang_payimg .pay_img").addClass("weixin_img");
+            } else {
+                $(".shang_box .shang_payimg .pay_img").removeClass("weixin_img");
+            }
+        })
+        
+
+        /*高亮代码块行号*/
+        
+        $('pre code').each(function(){
+            var lines = $(this).text().split('\n').length - 1, widther='';
+            if (lines>99) {
+                widther = 'widther'
+            }
+            var $numbering = $('<ul/>').addClass('pre-numbering ' + widther).attr("unselectable","on");
+            $(this).addClass('has-numbering ' + widther)
+                    .parent()
+                    .append($numbering);
+            for(var i=1;i<=lines;i++){
+                $numbering.append($('<li/>').text(i));
+            }
+        });
+        
+
+        /*访问数量*/
+        
+        $.getScript("//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js");
+        
+
+        /*代码高亮，行号对齐*/
+        $('.pre-numbering').css('line-height',$('.has-numbering').css('line-height'));
+
+        
+        
+    }
+
+    /*打赏页面隐藏与展示*/
+    
+    function dashangToggle() {
+        $(".shang_box").fadeToggle();
+        $(".hide_box").fadeToggle();
+    }
+    
+
+</script>
+
+<!--加入行号的高亮代码块样式-->
+
+<style>
+    pre{
+        position: relative;
+        margin-bottom: 24px;
+        border-radius: 10px;
+        border: 1px solid #e2dede;
+        background: #FFF;
+        overflow: hidden;
+    }
+    code.has-numbering{
+        margin-left: 30px;
+    }
+    code.has-numbering.widther{
+        margin-left: 35px;
+    }
+    .pre-numbering{
+        margin: 0px;
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 20px;
+        padding: 0.5em 3px 0.7em 5px;
+        border-right: 1px solid #C3CCD0;
+        text-align: right;
+        color: #AAA;
+        background-color: #fafafa;
+    }
+    .pre-numbering.widther {
+        width: 35px;
+    }
+</style>
+
+<!--自定义样式设置-->
+<style>
+    
+    
+    .nav {
+        width: 542px;
+    }
+    .nav.fullscreen {
+        margin-left: -542px;
+    }
+    .nav-left {
+        width: 120px;
+    }
+    
+    
+    @media screen and (max-width: 1468px) {
+        .nav {
+            width: 492px;
+        }
+        .nav.fullscreen {
+            margin-left: -492px;
+        }
+        .nav-left {
+            width: 100px;
+        }
+    }
+    
+    
+    @media screen and (max-width: 1024px) {
+        .nav {
+            width: 492px;
+            margin-left: -492px
+        }
+        .nav.fullscreen {
+            margin-left: 0;
+        }
+        .nav .hide-list.fullscreen {
+            left: 492px
+        }
+    }
+    
+    @media screen and (max-width: 426px) {
+        .nav {
+            width: 100%;
+        }
+        .nav-left {
+            width: 100%;
+        }
+    }
+    
+    
+    .nav-right .title-list nav a .post-title, .nav-right .title-list #local-search-result a .post-title {
+        color: #383636;
+    }
+    
+    
+    .nav-right .title-list nav a .post-date, .nav-right .title-list #local-search-result a .post-date {
+        color: #5e5e5f;
+    }
+    
+    
+    .nav-right nav a.hover, #local-search-result a.hover{
+        background-color: #e2e0e0;
+    }
+    
+    
+
+    /*列表样式*/
+    
+    .post .pjax article .article-entry>ol, .post .pjax article .article-entry>ul, .post .pjax article>ol, .post .pjax article>ul{
+        border: #e2dede solid 1px;
+        border-radius: 10px;
+        padding: 10px 32px 10px 56px;
+    }
+    .post .pjax article .article-entry li>ol, .post .pjax article .article-entry li>ul,.post .pjax article li>ol, .post .pjax article li>ul{
+        padding-top: 5px;
+        padding-bottom: 5px;
+    }
+    .post .pjax article .article-entry>ol>li, .post .pjax article .article-entry>ul>li,.post .pjax article>ol>li, .post .pjax article>ul>li{
+        margin-bottom: auto;
+        margin-left: auto;
+    }
+    .post .pjax article .article-entry li>ol>li, .post .pjax article .article-entry li>ul>li,.post .pjax article li>ol>li, .post .pjax article li>ul>li{
+        margin-bottom: auto;
+        margin-left: auto;
+    }
+    
+
+    /* 背景图样式 */
+    
+    
+
+
+    /*引用块样式*/
+    
+
+    /*文章列表背景图*/
+    
+    .nav-right:before {
+        content: ' ';
+        display: block;
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 100%;
+        height: 100%;
+        opacity: 0.3;
+        background: url("https://i.loli.net/2019/07/22/5d3521411f3f169375.png");
+        background-repeat: no-repeat;
+        background-position: 50% 0;
+        -ms-background-size: cover;
+        -o-background-size: cover;
+        -moz-background-size: cover;
+        -webkit-background-size: cover;
+        background-size: cover;
+    }
+    
+
+    
+</style>
+
+
+
+
+
+
+
+</html>

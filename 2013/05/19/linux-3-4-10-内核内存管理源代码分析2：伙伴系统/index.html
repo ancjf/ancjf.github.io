@@ -1,0 +1,1076 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>linux 源代码分析2:伙伴系统 | 机器人的博客</title>
+  <meta name="keywords" content=" linux , 内存管理 , 伙伴系统 ">
+  <meta name="description" content="linux 源代码分析2:伙伴系统 | 机器人的博客">
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<meta property="og:type" content="article">
+<meta property="og:title" content="以太坊">
+<meta property="og:url" content="http://ancjf.com/2020/03/29/%E4%BB%A5%E5%A4%AA%E5%9D%8A/index.html">
+<meta property="og:site_name" content="机器人的博客">
+<meta property="og:locale" content="en_US">
+<meta property="article:published_time" content="2020-03-29T13:58:09.000Z">
+<meta property="article:modified_time" content="2020-03-29T13:58:31.258Z">
+<meta property="article:author" content="ancjf">
+<meta name="twitter:card" content="summary">
+
+
+<link rel="icon" href="/img/avatar.jpg">
+
+<link href="/css/style.css?v=1.0.1" rel="stylesheet">
+
+<link href="/css/hl_theme/atom-light.css?v=1.0.1" rel="stylesheet">
+
+<link href="//cdn.bootcss.com/animate.css/3.5.2/animate.min.css" rel="stylesheet">
+<link href="//cdn.bootcss.com/font-awesome/4.7.0/css/font-awesome.min.css" rel="stylesheet">
+
+<script src="//cdn.bootcss.com/jquery/2.2.4/jquery.min.js"></script>
+<script src="/js/jquery.autocomplete.min.js?v=1.0.1" ></script>
+
+<script src="//cdn.bootcss.com/highlight.js/9.12.0/highlight.min.js"></script>
+<script>
+    hljs.initHighlightingOnLoad();
+</script>
+
+<script src="//cdn.bootcss.com/nprogress/0.2.0/nprogress.min.js"></script>
+
+
+
+<script src="//cdn.bootcss.com/jquery-cookie/1.4.1/jquery.cookie.min.js" ></script>
+
+<script src="/js/iconfont.js?v=1.0.1" ></script>
+
+<meta name="generator" content="Hexo 4.2.0"></head>
+<div style="display: none">
+  <input class="theme_disqus_on" value="false">
+  <input class="theme_preload_comment" value="false">
+  <input class="theme_blog_path" value="">
+</div>
+
+<body>
+<aside class="nav">
+    <div class="nav-left">
+        <a href="/" class="avatar_target">
+    <img class="avatar" src="/img/avatar.jpg" />
+</a>
+<div class="author">
+    <span>ancjf</span>
+</div>
+
+<div class="icon">
+    
+        
+        <a title="rss" href="/atom.xml" target="_blank">
+            
+                <svg class="iconfont-svg" aria-hidden="true">
+                    <use xlink:href="#icon-rss"></use>
+                </svg>
+            
+        </a>
+        
+    
+        
+        <a title="github" href="https://github.com/ancjf" target="_blank">
+            
+                <svg class="iconfont-svg" aria-hidden="true">
+                    <use xlink:href="#icon-github"></use>
+                </svg>
+            
+        </a>
+        
+    
+        
+        <a title="facebook" href="https://www.facebook.com/faker.tops" target="_blank">
+            
+                <svg class="iconfont-svg" aria-hidden="true">
+                    <use xlink:href="#icon-facebook"></use>
+                </svg>
+            
+        </a>
+        
+    
+        
+    
+        
+    
+        
+        <a title="instagram" href="https://www.facebook.com/faker.tops" target="_blank">
+            
+                <svg class="iconfont-svg" aria-hidden="true">
+                    <use xlink:href="#icon-instagram"></use>
+                </svg>
+            
+        </a>
+        
+    
+        
+        <a title="reddit" href="https://www.reddit.com/user/yelog/" target="_blank">
+            
+                <svg class="iconfont-svg" aria-hidden="true">
+                    <use xlink:href="#icon-reddit"></use>
+                </svg>
+            
+        </a>
+        
+    
+        
+        <a title="weibo" href="http://weibo.com/u/2307534817" target="_blank">
+            
+                <svg class="iconfont-svg" aria-hidden="true">
+                    <use xlink:href="#icon-weibo"></use>
+                </svg>
+            
+        </a>
+        
+    
+        
+        <a title="jianshu" href="https://www.jianshu.com/u/ff56736de7cf" target="_blank">
+            
+                <svg class="iconfont-svg" aria-hidden="true">
+                    <use xlink:href="#icon-jianshu"></use>
+                </svg>
+            
+        </a>
+        
+    
+        
+        <a title="zhihu" href="https://www.zhihu.com/people/jaytp/activities" target="_blank">
+            
+                <svg class="iconfont-svg" aria-hidden="true">
+                    <use xlink:href="#icon-zhihu"></use>
+                </svg>
+            
+        </a>
+        
+    
+        
+    
+        
+        <a title="oschina" href="https://my.oschina.net/yelog" target="_blank">
+            
+                <svg class="iconfont-svg" aria-hidden="true">
+                    <use xlink:href="#icon-oschina"></use>
+                </svg>
+            
+        </a>
+        
+    
+        
+    
+        
+        <a title="email" href="mailto:ancjf@163.com" target="_blank">
+            
+                <svg class="iconfont-svg" aria-hidden="true">
+                    <use xlink:href="#icon-email"></use>
+                </svg>
+            
+        </a>
+        
+    
+        
+        <a title="qq" href="http://wpa.qq.com/msgrd?v=3&uin=156715133&site=qq&menu=yes" target="_blank">
+            
+                <svg class="iconfont-svg" aria-hidden="true">
+                    <use xlink:href="#icon-qq"></use>
+                </svg>
+            
+        </a>
+        
+    
+        
+        <a title="kugou" href="https://www.kugou.com/" target="_blank">
+            
+                <svg class="iconfont-svg" aria-hidden="true">
+                    <use xlink:href="#icon-kugou"></use>
+                </svg>
+            
+        </a>
+        
+    
+        
+        <a title="neteasemusic" href="https://music.163.com/#/user/home?id=88151013" target="_blank">
+            
+                <svg class="iconfont-svg" aria-hidden="true">
+                    <use xlink:href="#icon-neteasemusic"></use>
+                </svg>
+            
+        </a>
+        
+    
+</div>
+
+
+
+
+<ul>
+    <li><div class="all active">全部文章<small>(13)</small></div></li>
+    
+        
+            
+            <li><div data-rel="linux">linux<small>(11)</small></div>
+                
+            </li>
+            
+        
+    
+        
+            
+            <li><div data-rel="区块链">区块链<small>(1)</small></div>
+                
+            </li>
+            
+        
+    
+</ul>
+<div class="left-bottom">
+    <div class="menus">
+    
+    
+    
+    
+    </div>
+    <div><a class="about  hasFriend  site_url"  href="/about">关于</a><a style="width: 50%"  class="friends">友链</a></div>
+</div>
+<input type="hidden" id="yelog_site_posts_number" value="13">
+
+<div style="display: none">
+    <span id="busuanzi_value_site_uv"></span>
+    <span id="busuanzi_value_site_pv"></span>
+</div>
+
+    </div>
+    <div class="nav-right">
+        <div class="friends-area">
+    <div class="friends-title">
+        友情链接
+        <i class="back-title-list"></i>
+    </div>
+    <div class="friends-content">
+        <ul>
+            
+            <li><a target="_blank" href="http://yelog.org/">叶落阁</a></li>
+            
+        </ul>
+    </div>
+</div>
+        <div class="title-list">
+    <form onkeydown="if(event.keyCode === 13){return false;}">
+        <input id="local-search-input" class="search" type="text" placeholder="Search..." />
+        <i class="cross"></i>
+        <span>
+            <label for="tagswitch">Tags:</label>
+            <input id="tagswitch" type="checkbox" style="display: none" />
+            <i id="tagsWitchIcon"></i>
+        </span>
+    </form>
+    <div class="tags-list">
+    
+    <li class="article-tag-list-item">
+        <a class="color1">linux</a>
+    </li>
+    
+    <li class="article-tag-list-item">
+        <a class="color5">内存管理</a>
+    </li>
+    
+    <li class="article-tag-list-item">
+        <a class="color5">伙伴系统</a>
+    </li>
+    
+    <li class="article-tag-list-item">
+        <a class="color5">Slab</a>
+    </li>
+    
+    <li class="article-tag-list-item">
+        <a class="color5">内存释放</a>
+    </li>
+    
+    <li class="article-tag-list-item">
+        <a class="color3">伙伴系统初始化</a>
+    </li>
+    
+    <li class="article-tag-list-item">
+        <a class="color5">内存分配</a>
+    </li>
+    
+    <div class="clearfix"></div>
+</div>
+
+    
+    <nav id="title-list-nav">
+        
+        <a  class="linux "
+           href="/2013/06/09/linux-3-4-10-%E5%86%85%E6%A0%B8%E5%86%85%E5%AD%98%E7%AE%A1%E7%90%86%E6%BA%90%E4%BB%A3%E7%A0%81%E5%88%86%E6%9E%9010-slab%E9%80%9A%E7%94%A8%E9%95%BF%E5%BA%A6%E5%86%85%E5%AD%98%E5%88%86%E9%85%8D/"
+           data-tag="linux,内存管理,伙伴系统,Slab"
+           data-author="" >
+            <span class="post-title" title="linux 源代码分析10:slab通用长度内存分配">linux 源代码分析10:slab通用长度内存分配</span>
+            <span class="post-date" title="2013-06-09 20:17:42">2013/06/09</span>
+        </a>
+        
+        <a id="top" class=""
+           href="/2020/03/29/hello-world/"
+           data-tag=""
+           data-author="" >
+            <span class="post-title" title="Hello World">Hello World</span>
+            <span class="post-date" title="2020-03-29 16:05:21">2020/03/29</span>
+        </a>
+        
+        <a  class="linux "
+           href="/2013/05/18/linux-3-4-10-%E5%86%85%E6%A0%B8%E5%86%85%E5%AD%98%E7%AE%A1%E7%90%86%E6%BA%90%E4%BB%A3%E7%A0%81%E5%88%86%E6%9E%901%EF%BC%9A%E6%BA%90%E4%BB%A3%E7%A0%81%E9%98%85%E8%AF%BB%E5%B7%A5%E5%85%B7%EF%BC%8C%E7%BC%96%E8%AF%91%E5%8F%8A%E8%B0%83%E8%AF%95/"
+           data-tag="linux,内存管理"
+           data-author="" >
+            <span class="post-title" title="linux 源代码分析1:源代码阅读工具，编译及调试">linux 源代码分析1:源代码阅读工具，编译及调试</span>
+            <span class="post-date" title="2013-05-18 10:18:17">2013/05/18</span>
+        </a>
+        
+        <a  class="linux "
+           href="/2013/06/03/linux-3-4-10-%E5%86%85%E6%A0%B8%E5%86%85%E5%AD%98%E7%AE%A1%E7%90%86%E6%BA%90%E4%BB%A3%E7%A0%81%E5%88%86%E6%9E%906-Slab%E5%88%86%E9%85%8D%E5%99%A8/"
+           data-tag="linux,内存管理,伙伴系统,Slab"
+           data-author="" >
+            <span class="post-title" title="linux 源代码分析6:Slab分配器">linux 源代码分析6:Slab分配器</span>
+            <span class="post-date" title="2013-06-03 19:28:59">2013/06/03</span>
+        </a>
+        
+        <a  class="linux "
+           href="/2013/05/21/linux-3-4-10-%E5%86%85%E6%A0%B8%E5%86%85%E5%AD%98%E7%AE%A1%E7%90%86%E6%BA%90%E4%BB%A3%E7%A0%81%E5%88%86%E6%9E%904-%E4%BC%99%E4%BC%B4%E7%B3%BB%E7%BB%9F%E5%86%85%E5%AD%98%E9%87%8A%E6%94%BE/"
+           data-tag="linux,内存管理,伙伴系统,内存释放"
+           data-author="" >
+            <span class="post-title" title="linux 源代码分析4:伙伴系统内存释放">linux 源代码分析4:伙伴系统内存释放</span>
+            <span class="post-date" title="2013-05-21 20:25:33">2013/05/21</span>
+        </a>
+        
+        <a  class="区块链 "
+           href="/2020/03/29/%E4%BB%A5%E5%A4%AA%E5%9D%8A/"
+           data-tag=""
+           data-author="" >
+            <span class="post-title" title="以太坊">以太坊</span>
+            <span class="post-date" title="2020-03-29 21:58:09">2020/03/29</span>
+        </a>
+        
+        <a  class="linux "
+           href="/2013/06/05/linux-3-4-10-%E5%86%85%E6%A0%B8%E5%86%85%E5%AD%98%E7%AE%A1%E7%90%86%E6%BA%90%E4%BB%A3%E7%A0%81%E5%88%86%E6%9E%907-Slab%E5%9D%97%E7%9A%84%E7%AE%A1%E7%90%86/"
+           data-tag="linux,内存管理,伙伴系统,Slab"
+           data-author="" >
+            <span class="post-title" title="linux 源代码分析7:Slab块的管理">linux 源代码分析7:Slab块的管理</span>
+            <span class="post-date" title="2013-06-05 20:56:05">2013/06/05</span>
+        </a>
+        
+        <a  class="linux "
+           href="/2013/06/12/linux-3-4-10-%E5%86%85%E6%A0%B8%E5%86%85%E5%AD%98%E7%AE%A1%E7%90%86%E6%BA%90%E4%BB%A3%E7%A0%81%E5%88%86%E6%9E%9011-Slab%E5%88%9D%E5%A7%8B%E5%8C%96/"
+           data-tag="linux,内存管理,伙伴系统,Slab"
+           data-author="" >
+            <span class="post-title" title="linux 源代码分析11:Slab初始化">linux 源代码分析11:Slab初始化</span>
+            <span class="post-date" title="2013-06-12 19:43:06">2013/06/12</span>
+        </a>
+        
+        <a  class="linux "
+           href="/2013/05/19/linux-3-4-10-%E5%86%85%E6%A0%B8%E5%86%85%E5%AD%98%E7%AE%A1%E7%90%86%E6%BA%90%E4%BB%A3%E7%A0%81%E5%88%86%E6%9E%902%EF%BC%9A%E4%BC%99%E4%BC%B4%E7%B3%BB%E7%BB%9F/"
+           data-tag="linux,内存管理,伙伴系统"
+           data-author="" >
+            <span class="post-title" title="linux 源代码分析2:伙伴系统">linux 源代码分析2:伙伴系统</span>
+            <span class="post-date" title="2013-05-19 11:08:56">2013/05/19</span>
+        </a>
+        
+        <a  class="linux "
+           href="/2013/06/09/linux-3-4-10-%E5%86%85%E6%A0%B8%E5%86%85%E5%AD%98%E7%AE%A1%E7%90%86%E6%BA%90%E4%BB%A3%E7%A0%81%E5%88%86%E6%9E%909-Slab%E5%86%85%E5%AD%98%E9%87%8A%E6%94%BE/"
+           data-tag="linux,内存管理,伙伴系统,Slab"
+           data-author="" >
+            <span class="post-title" title="linux 源代码分析9:Slab内存释放">linux 源代码分析9:Slab内存释放</span>
+            <span class="post-date" title="2013-06-09 20:17:42">2013/06/09</span>
+        </a>
+        
+        <a  class="linux "
+           href="/2013/06/04/linux-3-4-10-%E5%86%85%E6%A0%B8%E5%86%85%E5%AD%98%E7%AE%A1%E7%90%86%E6%BA%90%E4%BB%A3%E7%A0%81%E5%88%86%E6%9E%908-Slab%E5%86%85%E5%AD%98%E5%88%86%E9%85%8D/"
+           data-tag="linux,内存管理,伙伴系统,Slab"
+           data-author="" >
+            <span class="post-title" title="linux 源代码分析8:Slab内存分配">linux 源代码分析8:Slab内存分配</span>
+            <span class="post-date" title="2013-06-04 19:47:29">2013/06/04</span>
+        </a>
+        
+        <a  class="linux "
+           href="/2013/05/22/linux-3-4-10-%E5%86%85%E6%A0%B8%E5%86%85%E5%AD%98%E7%AE%A1%E7%90%86%E6%BA%90%E4%BB%A3%E7%A0%81%E5%88%86%E6%9E%905-%E4%BC%99%E4%BC%B4%E7%B3%BB%E7%BB%9F%E5%88%9D%E5%A7%8B%E5%8C%96/"
+           data-tag="linux,内存管理,伙伴系统,伙伴系统初始化"
+           data-author="" >
+            <span class="post-title" title="linux 源代码分析5:伙伴系统初始化">linux 源代码分析5:伙伴系统初始化</span>
+            <span class="post-date" title="2013-05-22 21:59:15">2013/05/22</span>
+        </a>
+        
+        <a  class="linux "
+           href="/2013/05/20/linux-3-4-10-%E5%86%85%E6%A0%B8%E5%86%85%E5%AD%98%E7%AE%A1%E7%90%86%E6%BA%90%E4%BB%A3%E7%A0%81%E5%88%86%E6%9E%903-%E4%BC%99%E4%BC%B4%E7%B3%BB%E7%BB%9F%E5%86%85%E5%AD%98%E5%88%86%E9%85%8D/"
+           data-tag="linux,内存管理,伙伴系统,内存分配"
+           data-author="" >
+            <span class="post-title" title="linux 源代码分析3:伙伴系统内存分配">linux 源代码分析3:伙伴系统内存分配</span>
+            <span class="post-date" title="2013-05-20 19:29:04">2013/05/20</span>
+        </a>
+        
+    </nav>
+</div>
+    </div>
+    <div class="hide-list">
+        <div class="semicircle">
+            <div class="brackets first"><</div>
+            <div class="brackets">&gt;</div>
+        </div>
+    </div>
+</aside>
+<div class="post">
+    <div class="pjax">
+        <article id="post-linux-3-4-10-内核内存管理源代码分析2：伙伴系统" class="article article-type-post" itemscope itemprop="blogPost">
+    
+        <h1 class="article-title">linux 源代码分析2:伙伴系统</h1>
+    
+    <div class="article-meta">
+        
+        
+        
+        <span class="book">
+            
+                <a  data-rel="linux">linux</a>
+            
+        </span>
+        
+        
+        <span class="tag">
+            
+            <a class="color1">linux</a>
+            
+            <a class="color5">内存管理</a>
+            
+            <a class="color5">伙伴系统</a>
+            
+        </span>
+        
+    </div>
+    <div class="article-meta">
+        
+        创建时间:<time class="date" title='更新时间: 2020-04-18 14:42:37'>2013-05-19 11:08</time>
+        
+    </div>
+    <div class="article-meta">
+        
+        
+        <span id="busuanzi_container_page_pv">
+            阅读:<span id="busuanzi_value_page_pv">
+                <span class="count-comment">
+                    <span class="spinner">
+                      <div class="cube1"></div>
+                      <div class="cube2"></div>
+                    </span>
+                </span>
+            </span>
+        </span>
+        
+        
+    </div>
+    
+    <div class="toc-ref">
+    
+        <ol class="toc"><li class="toc-item toc-level-1"><a class="toc-link" href="#伙伴系统"><span class="toc-text">伙伴系统</span></a><ol class="toc-child"><li class="toc-item toc-level-2"><a class="toc-link" href="#Linux采用NUMA模型，所谓NUMA即非一致访问分布共享存储技术。"><span class="toc-text">Linux采用NUMA模型，所谓NUMA即非一致访问分布共享存储技术。</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#下面是这几个结构的详细说明"><span class="toc-text">下面是这几个结构的详细说明</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#为了更好的管理内存，还有几个辅助管理结构"><span class="toc-text">为了更好的管理内存，还有几个辅助管理结构</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#以下伙伴系统内存管理系统的设计考虑到几个因素："><span class="toc-text">以下伙伴系统内存管理系统的设计考虑到几个因素：</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#下面先介绍几个影响伙伴系统内存管理的设计因素："><span class="toc-text">下面先介绍几个影响伙伴系统内存管理的设计因素：</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#内存迁移"><span class="toc-text">内存迁移</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#get-pageblock-migratetype函数"><span class="toc-text">get_pageblock_migratetype函数</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#get-pageblock-flags-group函数"><span class="toc-text">get_pageblock_flags_group函数</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#pfn-to-bitidx-函数"><span class="toc-text">pfn_to_bitidx 函数</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#set-pageblock-migratetypeh函数"><span class="toc-text">set_pageblock_migratetypeh函数</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#move-freepages-block函数"><span class="toc-text">move_freepages_block函数</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#move-freepages函数"><span class="toc-text">move_freepages函数</span></a></li></ol></li></ol></li></ol>
+    
+<style>
+    .left-col .switch-btn,
+    .left-col .switch-area {
+        display: none;
+    }
+    .toc-level-3 i,
+    .toc-level-3 ol {
+        display: none !important;
+    }
+</style>
+</div>
+    
+    <div class="article-entry" itemprop="articleBody">
+      
+        <h1 id="伙伴系统"><a href="#伙伴系统" class="headerlink" title="伙伴系统"></a>伙伴系统</h1><h2 id="Linux采用NUMA模型，所谓NUMA即非一致访问分布共享存储技术。"><a href="#Linux采用NUMA模型，所谓NUMA即非一致访问分布共享存储技术。" class="headerlink" title="Linux采用NUMA模型，所谓NUMA即非一致访问分布共享存储技术。"></a>Linux采用NUMA模型，所谓NUMA即非一致访问分布共享存储技术。</h2><pre><code>NUMA 系统的结点通常是由一组 CPU(如，SGI Altix 3000 是 2 个Itanium2 CPU)和本地内存组成，有的结点可能还有I/O子系统。
+由于每个结点都有自己的本地内存，因此全系统的内存在物理上是分布的，每个结点访问本地内存和访问其它结点的远地内存的延迟是不同的，为了减少非一致性访存对系统的影响，在硬件设计时应尽量降低远地内存访存延迟(如通过 Cache 一致性设计等)，而操作系统也必须能感知硬件的拓扑结构，优化系统的访存。NUMA包含目前的大多数计算机系统，smp系统可以认为是包含一个numa节点的系统。
+Linux内存管理系统是对NUMA计算机内存模型的抽象。Linux内存管理系统的设计框架也是把内存分为不同的结点（pglist_data），每个cpu对应一个本地结点，每个结点有几个的区域（zone），这是因为一个结点的不同区域可能有不同的访问属性，如在x86系统上，dma只能访问只能访问较低端的内存区域。
+区域是页（page）的集合，每个区域包含一个范围的页，每个页有一个页帧号，在系统里面唯一的，通常用pfn表示。页是内核内存管理的最基本单位，在内核中每页会有一个页面结构（page）来记录页的一些管理数据，一般mmu是以页为单位来进行内存映射的。调用函数getpagesize可以获得页的大小。
+页是伙伴系统内存管理的基本单位，但伙伴系统并不是直接基于页来进行内存管理的。在页之上，我提出块的概念，每个块包含连续的若干页面。在伙伴系统中每个块包含2^order块页面，我们把order叫做块的阶，块还有迁移类型属性，不同的块可能属于不同的迁移类型。伙伴系统把一些阶一样的块连接成一个链表，当要分配阶为n的块时，实质就是找到一个包含阶为n的空闲块的链表，在链表中摘除一项，返回这一项管理的物理地址。
+每次内存分配都是在一个区域里面完成的，但在区域里面并不是直接一页一页来进行分配，而是每次分配一块。</code></pre><h2 id="下面是这几个结构的详细说明"><a href="#下面是这几个结构的详细说明" class="headerlink" title="下面是这几个结构的详细说明"></a>下面是这几个结构的详细说明</h2><pre><code>typedefstruct pglist_data {
+    structzone node_zones[MAX_NR_ZONES];            //节点包含的区域
+    structzonelist node_zonelists[MAX_ZONELISTS];           //节点列表数组，在numa系统下有两个，第零个全局列表，包含系统所有区域，第一个包含本地区域。本地址列表的初始化顺序是ZONE_DMA，ZONE_NORMAL，ZONE_HIGHMEM。全局列表的初始化是，对每个节点的初始化顺序和本地节点一样，对节点的初始化顺序是先初始化本节点，然后增加节点号，到底最大节点号后归零，包含每个节点的区域一次。
+    intnr_zones;             //本节点包含的区域数
+    #ifdef CONFIG_FLAT_NODE_MEM_MAP         /* means !SPARSEMEM */
+        structpage *node_mem_map;
+    #ifdef CONFIG_CGROUP_MEM_RES_CTLR
+    structpage_cgroup *node_page_cgroup;
+    #endif
+    #endif
+    #ifndef CONFIG_NO_BOOTMEM
+    structbootmem_data *bdata;
+    #endif
+    #ifdef CONFIG_MEMORY_HOTPLUG
+    spinlock_tnode_size_lock;
+    #endif
+    unsignedlong node_start_pfn;                 //节点的第一个页的页帧
+    unsignedlong node_present_pages; /* total number of physical pages */            //本节点物理内存总页数
+    unsignedlong node_spanned_pages; /* total size of physical page                //本节点可用的物理页面总数
+    range, including holes */
+    intnode_id;               //本节点id，全局唯一
+    wait_queue_head_tkswapd_wait;
+    structtask_struct *kswapd;   /* Protected bylock_memory_hotplug() */
+    intkswapd_max_order;
+    enumzone_type classzone_idx;
+} pg_data_t;
+struct zone {
+    unsignedlong watermark[NR_WMARK];             //水位线
+    unsignedlong percpu_drift_mark;
+    unsignedlong      lowmem_reserve[MAX_NR_ZONES];          //每个区域会保留一些内存，在这里记录
+    unsignedlong      dirty_balance_reserve;
+    #ifdef CONFIG_NUMA
+        intnode;  //所属的NUMA节点
+        unsigned long     min_unmapped_pages;  //当内存管理区中，用于slab的可回收页大于此值时，将回收slab中的缓存页。
+        unsignedlong      min_slab_pages;
+    #endif
+    structper_cpu_pageset __percpu *pageset;    //每CPU的页面缓存， 当分配单个页面时，首先从该缓存中分配页面，可提高效率
+    spinlock_t             lock; //该锁用于保护伙伴系统数据结构。即保护free_area相关数据。
+    int                all_unreclaimable; /* Allpages pinned */
+#ifdef CONFIG_MEMORY_HOTPLUG
+    /*see spanned/present_pages for more description */
+    seqlock_t     span_seqlock;
+#endif
+    structfree_area      free_area[MAX_ORDER]; //空闲块链表，这个数组定义了11个队列，每个队列中的元素都是大小为2^n的页面块。
+#ifndef CONFIG_SPARSEMEM
+    unsignedlong      *pageblock_flags;
+#endif /* CONFIG_SPARSEMEM */
+#ifdef CONFIG_COMPACTION
+    unsignedint         compact_considered;
+    unsignedint         compact_defer_shift;
+    int                  compact_order_failed;
+#endif
+    ZONE_PADDING(_pad1_)
+    /*Fields commonly accessed by the page reclaim scanner */
+    spinlock_t             lru_lock;
+    structlruvec         lruvec;
+    structzone_reclaim_stat reclaim_stat;
+    unsignedlong      pages_scanned;         /* since last reclaim */
+    unsignedlong      flags;                /* zone flags, see below */
+    /*Zone statistics */
+    atomic_long_t     vm_stat[NR_VM_ZONE_STAT_ITEMS];
+    unsignedint inactive_ratio;
+    ZONE_PADDING(_pad2_)
+    wait_queue_head_t    * wait_table;
+    unsignedlong      wait_table_hash_nr_entries;
+    unsignedlong      wait_table_bits;
+    structpglist_data    *zone_pgdat;      //指向本区域所在的节点结构
+    unsignedlong      zone_start_pfn;           //本区域第一页的也帧
+    unsignedlong      spanned_pages;      /* total size, including holes */        //本区域总页数，包含中间的空洞
+    unsignedlong      present_pages;        /* amount of memory (excluding holes) */          //本区域可用的总页数
+    constchar             *name;         //本区域名称，如Normal、DMA、Highmem等
+} ____cacheline_internodealigned_in_smp;
+struct page {
+    unsignedlong flags;                  
+    structaddress_space *mapping;    //如果最低位为0，则指向inode 的address_space，或则为NULL。如果页映射为匿名内存，最低位置位，而且该指针指向anon_vma对象
+    struct{
+    union{
+    pgoff_tindex;      /* Our offset withinmapping. */
+    void*freelist;       /* slub first freeobject */
+    };
+    union{
+            #if defined(CONFIG_HAVE_CMPXCHG_DOUBLE)&amp;&amp; \
+                defined(CONFIG_HAVE_ALIGNED_STRUCT_PAGE)
+    unsignedlong counters;
+            #else
+    unsignedcounters;
+            #endif
+             struct{
+                union{
+                    atomic_t_mapcount; //表示在也表中有多少项指向该页
+                        struct{
+                            unsignedinuse:16;
+                            unsignedobjects:15;
+                            unsignedfrozen:1;
+                        };       //用于slub页的使用计数
+                    };
+                    atomic_t_count;         /* Usage count, seebelow. */
+                };
+    };
+    };
+    /*Third double word block */
+    union{              
+        structlist_head lru;         //lru链表
+        struct{         /* slub per cpu partialpages */
+            structpage *next;   /* Next partial slab */
+            #ifdef CONFIG_64BIT
+                intpages;    /* Nr of partial slabs left*/
+                intpobjects;     /* Approximate # of objects*/
+            #else
+                shortint pages;
+                shortint pobjects;
+            #endif
+        };
+    };
+//指向私有数据的指针，虚拟内存管理会忽略该数据。根据页的用途，可以用不同的方式使用该指针。
+    union{
+        unsignedlong private;    
+        #if USE_SPLIT_PTLOCKS
+            spinlock_tptl;
+        #endif
+            structkmem_cache *slab;      //用于SLUB分配器，指向slab的指针
+            structpage *first_page; //用于复合页，指向首页
+};
+        #if defined(WANT_PAGE_VIRTUAL)
+            void*virtual;                      //用于高端内存区中的页，即无法直接映射到内核内存中的页。Virtual用于存储该页的虚拟地址。
+        #endif /* WANT_PAGE_VIRTUAL */
+        #ifdef CONFIG_WANT_PAGE_DEBUG_FLAGS
+            unsignedlong debug_flags;     /* Use atomic bitopson this */
+        #endif
+        #ifdef CONFIG_KMEMCHECK
+            void*shadow;  //指向影子页面
+        #endif
+    }</code></pre><h2 id="为了更好的管理内存，还有几个辅助管理结构"><a href="#为了更好的管理内存，还有几个辅助管理结构" class="headerlink" title="为了更好的管理内存，还有几个辅助管理结构"></a>为了更好的管理内存，还有几个辅助管理结构</h2><pre><code>1：区域索引（zoneref），根据区域所引可以定位区域和求得区域id 。
+2：区域列表（zonelist），区域列表结构的目的是按一定的顺序把区域索引结构保存起来，在分配的时候对满足条件的区域索引索引的区域进行扫描，在扫描到的区域里分配内存。
+3：区域缓存（zonelist_cache），区域缓存主要目的是用来记录区域的内存紧张状况。
+4：nodemask_t，节点掩码，一个位图数组，根据不同情况，用来标记一个节点或一个区域的集合
+5：free_area空闲区域，包含一个链表数组，对每个迁移类型对应一个链表，每个链表的每一项都链接的是一个空闲块。</code></pre><h2 id="以下伙伴系统内存管理系统的设计考虑到几个因素："><a href="#以下伙伴系统内存管理系统的设计考虑到几个因素：" class="headerlink" title="以下伙伴系统内存管理系统的设计考虑到几个因素："></a>以下伙伴系统内存管理系统的设计考虑到几个因素：</h2><pre><code>1：按阶分配内存页，即一次可以分配2^n页内存；
+2：防止内存碎片，伙伴系统中采用伙伴算法来避免碎片，另外还采用迁移类型来避免内存碎片
+3：页面交换，可以使程序使用到比实际物理内存更多的内存空间；
+4：另外程序可以设置内存策略，不同的内存策略会有不同的内存分配结果；
+5：水位线，用来在区域保留一定的内存，避免内存完全用尽的情形。
+6：分配选项，如可等待选项等
+7：在不同的结点上的内存分配，在不同的结点有不同的内存访问属性，访问本地节点的速度一般是快的
+一次分配2^order页内存的实现方法是设置一个链表数组，数组里面项的索引对应order，分配的时候从链表里面摘除一项就可以了。
+防止内存碎片采用了伙伴系统和迁移类型两种方法。伙伴系统在内存回收的过程中把伙伴块合并成更大的块来避免内存碎片，后面这分析伙伴系统内存分配函数的时候会全面分析伙伴系统算法。伙伴系统从内存回收的角度去解决内存碎片，迁移类型则从内存分配的角度解决内存碎片，把区域分为不同的迁移类型，根据不同迁移类型来分配，这样在一个迁移类型里面有碎片，但在另外一个迁移类型里面没有碎片，这样可以在一定程度上避免内存碎片；另外对造成碎片的可迁移到页面，把它迁移到其他不引起碎片的页面，这样也可以消除碎片。</code></pre><h2 id="下面先介绍几个影响伙伴系统内存管理的设计因素："><a href="#下面先介绍几个影响伙伴系统内存管理的设计因素：" class="headerlink" title="下面先介绍几个影响伙伴系统内存管理的设计因素："></a>下面先介绍几个影响伙伴系统内存管理的设计因素：</h2><h3 id="内存迁移"><a href="#内存迁移" class="headerlink" title="内存迁移"></a>内存迁移</h3><pre><code>这里介绍的内存迁移是和货币系统快速内存分配相关部分，而没有涉及到已经分配出去的页面的迁移，因为这一部分的内存比较多，需要单独一个章节才能介绍得完。
+在头文件include/linux/mmzone.h中定义了以下五中迁移类型
+MIGRATE_UNMOVABLE    这类页在内存当中有固定的位置，不能移动。内核的核心分配的内存大多属于这种类型
+MIGRATE_RECLAIMABLE  这类页不能直接移动，但可以删除，其内容页可以从其他地方重新生成，例如，映射自文件的数据属于这种类型，针对这种页，内核有专门的页面回收处理
+MIGRATE_MOVABLE可移动页:这类页可以随意移动，用户空间应用程序所用到的页属于该类别。它们通过页表来映射，如果他们复制到新的位置，页表项也会相应的更新，应用程序不会注意到任何改变。
+MIGRATE_PCPTYPES      是per_cpu_pageset，即用来表示每CPU页框高速缓存的数据结构中的链表的迁移类型数目
+MIGRATE_RESERVE       是在前三种的列表中都没用可满足分配的内存块时，就可以从MIGRATE_RESERVE分配
+MIGRATE_ISOLATE       用于跨越NUMA节点移动物理内存页，在大型系统上，它有益于将物理内存页移动到接近于是用该页最频繁地CPU
+MIGRATE_TYPES         表示迁移类型的数目
+迁移会在两个方面进行，空闲内存和已分配内存，对每个页面会有个迁移类型，以位图数组的形式保存在zone结构的成员pageblock_flags指向的内存中，在伙伴系统回收内存的时候会在这个位图数组中获得迁移类型，页面块释放到相应的空闲迁移链表中。对空闲内存，每个空闲区域（free_area），包含一个空闲块链表，对每个迁移类型都对应一个空闲链表。</code></pre><h3 id="get-pageblock-migratetype函数"><a href="#get-pageblock-migratetype函数" class="headerlink" title="get_pageblock_migratetype函数"></a>get_pageblock_migratetype函数</h3><pre><code>get_pageblock_migratetype函数用于获得页面的迁移类型。get_pageblock_migratetype函数在include/linux/mmzone.h中定义，代码如下：
+52 static inlineint get_pageblock_migratetype(struct page *page)
+53 {
+54         return get_pageblock_flags_group(page,PB_migrate, PB_migrate_end);
+55 }
+get_pageblock_migratetype函数调用get_pageblock_flags_group函数来获得迁移类型，PB_migrate和PB_migrate_end是枚举类型，在include/linux/pageblock-flags.h中定义
+29 enum pageblock_bits {
+30         PB_migrate,
+31         PB_migrate_end = PB_migrate + 3 - 1,
+32                         /* 3 bits required formigrate types */
+33         NR_PAGEBLOCK_BITS
+34 };</code></pre><h3 id="get-pageblock-flags-group函数"><a href="#get-pageblock-flags-group函数" class="headerlink" title="get_pageblock_flags_group函数"></a>get_pageblock_flags_group函数</h3><pre><code>get_pageblock_flags_group函数中mm/page_alloc.c中实现，代码如下：
+5355 unsigned long get_pageblock_flags_group(struct page *page,
+5356                                         intstart_bitidx, int end_bitidx)
+5357 {
+5358         struct zone*zone;
+5359         unsigned long*bitmap;
+5360         unsigned longpfn, bitidx;
+5361         unsigned longflags = 0;
+5362         unsigned long value = 1;
+5363
+5364         zone =page_zone(page);
+5365         pfn =page_to_pfn(page);
+5366         bitmap =get_pageblock_bitmap(zone, pfn);
+5367         bitidx =pfn_to_bitidx(zone, pfn);
+5368
+5369         for (;start_bitidx &lt;= end_bitidx; start_bitidx++, value &lt;&lt;= 1)
+5370                 if(test_bit(bitidx + start_bitidx, bitmap))
+5371                        flags |= value;
+5372
+5373         return flags;
+5374 }
+get_pageblock_flags_group调用函数pfn_to_bitidx获得页面对应的第一页的索引保存在变量bitidx中，然后按位获取从bitidx+ start_bitidx位到bitidx+ end_bitidx-1位的值返回。
+在zone结构中包含一个成员pageblock_flags，pageblock_flags指向一个位图数组，每个页面占用NR_PAGEBLOCK_BITS位，在这个位图数组中保存了页面的迁移类型。
+每个页面的第一位是通过页面的页帧号和页面所在的区域计算出的，计算的函数是：</code></pre><h3 id="pfn-to-bitidx-函数"><a href="#pfn-to-bitidx-函数" class="headerlink" title="pfn_to_bitidx 函数"></a>pfn_to_bitidx 函数</h3><pre><code>pfn_to_bitidx在mm/page_alloc.c中实现，代码如下：
+5337 static inline int pfn_to_bitidx(struct zone *zone, unsignedlong pfn)
+5338 {
+5339 #ifdef CONFIG_SPARSEMEM
+5340         pfn &amp;=(PAGES_PER_SECTION-1);
+5341         return (pfn&gt;&gt; pageblock_order) * NR_PAGEBLOCK_BITS;
+5342 #else
+5343         pfn = pfn -zone-&gt;zone_start_pfn;
+5344         return (pfn&gt;&gt; pageblock_order) * NR_PAGEBLOCK_BITS;
+5345 #endif /* CONFIG_SPARSEMEM */
+5346 }
+我们考虑在没有定义CONFIG_SPARSEMEM宏的情况，计算方法是页帧号右移pageblock_order位乘以NR_PAGEBLOCK_BITS。这样代表这样的意思，就是迁移类型是按最大块来区分的，每个迁移块包pageblock_order个页面，处于同一迁移块的页具有相同的迁移类型。</code></pre><h3 id="set-pageblock-migratetypeh函数"><a href="#set-pageblock-migratetypeh函数" class="headerlink" title="set_pageblock_migratetypeh函数"></a>set_pageblock_migratetypeh函数</h3><pre><code>上面的get_pageblock_migratetype 函数是用来获取页面迁移类型的，set_pageblock_migratetype函数是用来设置迁移类型的。get_pageblock_migratetype 函数在mm/page_alloc.c中实现，代码如下：
+221 static void set_pageblock_migratetype(struct page *page, intmigratetype)
+222{
+223
+224        if (unlikely(page_group_by_mobility_disabled))
+225                 migratetype = MIGRATE_UNMOVABLE;
+226
+227        set_pageblock_flags_group(page, (unsigned long)migratetype,
+228                                        PB_migrate, PB_migrate_end);
+229}
+在page_group_by_mobility_disabled变量为真情况下，把迁移类型设置为MIGRATE_UNMOVABLE，这样每次迁移都会把迁移类型迁移为MIGRATE_UNMOVABLE类型。
+set_pageblock_flags_group函数只是在迁移类型位图数组中按位设置迁移类型的值。</code></pre><h3 id="move-freepages-block函数"><a href="#move-freepages-block函数" class="headerlink" title="move_freepages_block函数"></a>move_freepages_block函数</h3><pre><code>上面的get_pageblock_migratetype函数是用来获取页面迁移类型的，move_freepages_block函数是用来设置迁移类型的，move_freepages_block函数在mm/page_alloc.c中实现，代码如下：
+932 static int move_freepages_block(structzone *zone, struct page *page,
+933                                 intmigratetype)
+934{
+935        unsigned long start_pfn, end_pfn;
+936        struct page *start_page, *end_page;
+937
+938        start_pfn = page_to_pfn(page);
+939        start_pfn = start_pfn &amp; ~(pageblock_nr_pages-1);
+940        start_page = pfn_to_page(start_pfn);
+941        end_page = start_page + pageblock_nr_pages - 1;
+942        end_pfn = start_pfn + pageblock_nr_pages - 1;
+943
+944        /* Do not cross zone boundaries */
+945        if (start_pfn &lt; zone-&gt;zone_start_pfn)
+946                 start_page = page;
+947        if (end_pfn &gt;= zone-&gt;zone_start_pfn + zone-&gt;spanned_pages)
+948                 return 0;
+949
+950        return move_freepages(zone, start_page, end_page, migratetype);
+951}
+move_freepages_block函数对一个范围内的页面进行迁移。这样范围的第一个页面由参数page传进来，页面数由宏pageblock_nr_pages定义。pageblock_nr_pages的值分两种情况，在配置在大页选项的情况下pageblock_nr_pages等于一个大页包含的页面数，否则等于最大空闲页包含的页面数。
+这个函数只是求出第一个要迁移的页面page结构指针，最后一个要迁移的页面page结构指针，调用move_freepages函数进行迁移。</code></pre><h3 id="move-freepages函数"><a href="#move-freepages函数" class="headerlink" title="move_freepages函数"></a>move_freepages函数</h3><pre><code>每个空闲区域（free_area）都包含若一个空闲链表数组（free_list），其实是对每个迁移类型为下标就得到对应的空闲链表。move_freepages把一个范围的页面迁移到一个区域的迁移类型空闲链表中。参数zone是要进行迁移到区域。 start_page 是要迁移到第一个页面结构地址，end_page 是最后一个要迁移到页面结构地址。migratetype是要迁移到的迁移类型。move_freepages在mm/page_alloc.c中实现，代码如下：
+889static int move_freepages(struct zone *zone,
+890                           struct page*start_page, struct page *end_page,
+891                           int migratetype)
+892{
+893        struct page *page;
+894        unsigned long order;
+895        int pages_moved = 0;
+896
+897#ifndef CONFIG_HOLES_IN_ZONE
+898        /*
+899         * page_zone is not safe to call in this context when
+900         * CONFIG_HOLES_IN_ZONE is set. This bug check is probably redundant
+901         * anyway as we check zone boundaries in move_freepages_block().
+902         * Remove at a later date when no bug reports exist related to
+903         * grouping pages by mobility
+904         */
+905        BUG_ON(page_zone(start_page) != page_zone(end_page));
+906#endif
+907
+908        for (page = start_page; page &lt;= end_page;) {
+909                 /* Make sure we are notinadvertently changing nodes */
+910                 VM_BUG_ON(page_to_nid(page) !=zone_to_nid(zone));
+911
+912                 if(!pfn_valid_within(page_to_pfn(page))) {
+913                         page++;
+914                         continue;
+915                 }
+916
+917                 if (!PageBuddy(page)) {
+918                         page++;
+919                         continue;
+920                 }
+921
+922                 order = page_order(page);
+923                 list_move(&amp;page-&gt;lru,
+924                          &amp;zone-&gt;free_area[order].free_list[migratetype]);
+925                 page += 1 &lt;&lt; order;
+926                 pages_moved += 1 &lt;&lt; order;
+927        }
+928
+929        return pages_moved;
+930}
+895行定义实际迁移的页面数量并初始化为0。
+908行从第一个页面开始进行循环，值到最后一个页面。
+910行对节点号进行检查。
+912行对页帧号进行检查。
+917行检查页面是不是buddy系统的页面。
+922行获得阶。
+923-924行进行空闲链表迁移。
+925行对增加page地址。
+926行对迁移页面数加1 &lt;&lt; order
+929返回迁移的页面数量。</code></pre>
+      
+       <hr><span style="font-style: italic;color: gray;"> 转载请注明来源，欢迎对文章中的引用来源进行考证，欢迎指出任何有错误或不够清晰的表达。可以在下面评论区评论，也可以邮件至 ancjf@163.com </span>
+    </div>
+</article>
+
+
+<p>
+    <a  class="dashang" onclick="dashangToggle()">赏</a>
+</p>
+
+
+<div class="article_copyright">
+    <p><span class="copy-title">文章标题:</span>linux 源代码分析2:伙伴系统</p>
+    
+    <p><span class="copy-title">本文作者:</span><a  title="ancjf">ancjf</a></p>
+    <p><span class="copy-title">发布时间:</span>2013-05-19, 11:08:56</p>
+    <p><span class="copy-title">最后更新:</span>2020-04-18, 14:42:37</p>
+    <span class="copy-title">原始链接:</span><a class="post-url" href="/2013/05/19/linux-3-4-10-%E5%86%85%E6%A0%B8%E5%86%85%E5%AD%98%E7%AE%A1%E7%90%86%E6%BA%90%E4%BB%A3%E7%A0%81%E5%88%86%E6%9E%902%EF%BC%9A%E4%BC%99%E4%BC%B4%E7%B3%BB%E7%BB%9F/" title="linux 源代码分析2:伙伴系统">http://ancjf.com/2013/05/19/linux-3-4-10-%E5%86%85%E6%A0%B8%E5%86%85%E5%AD%98%E7%AE%A1%E7%90%86%E6%BA%90%E4%BB%A3%E7%A0%81%E5%88%86%E6%9E%902%EF%BC%9A%E4%BC%99%E4%BC%B4%E7%B3%BB%E7%BB%9F/</a>
+    <p>
+        <span class="copy-title">版权声明:</span><i class="fa fa-creative-commons"></i> <a rel="license noopener" href="http://creativecommons.org/licenses/by-nc-sa/4.0/" target="_blank" title="CC BY-NC-SA 4.0 International" target = "_blank">"署名-非商用-相同方式共享 4.0"</a> 转载请保留原文链接及作者。
+    </p>
+</div>
+
+
+
+
+
+    
+
+
+
+
+    </div>
+    <div class="copyright">
+        <p class="footer-entry">©2016-2019 Yelog</p>
+<p class="footer-entry">Built with <a href="https://hexo.io/" target="_blank">Hexo</a> and <a href="https://github.com/yelog/hexo-theme-3-hexo" target="_blank">3-hexo</a> theme</p>
+
+    </div>
+    <div class="full-toc">
+        <button class="full"><span class="min "></span></button>
+<button class="post-toc-menu"><span class="post-toc-menu-icons"></span></button>
+<div class="post-toc"><span class="post-toc-title">目录</span>
+    <div class="post-toc-content">
+
+    </div>
+</div>
+<a class="" id="rocket" ></a>
+
+    </div>
+</div>
+<div class="acParent"></div>
+
+<div class="hide_box" onclick="dashangToggle()"></div>
+<div class="shang_box">
+    <a class="shang_close"  onclick="dashangToggle()">×</a>
+    <div class="shang_tit">
+        <p>喜欢就点赞,疼爱就打赏</p>
+    </div>
+    <div class="shang_payimg">
+        <div class="pay_img">
+            <img src="/img/alipay.jpg" class="alipay" title="扫码支持">
+            <img src="/img/weixin.jpg" class="weixin" title="扫码支持">
+        </div>
+    </div>
+    <div class="shang_payselect">
+        <span><label><input type="radio" name="pay" checked value="alipay">支付宝</label></span><span><label><input type="radio" name="pay" value="weixin">微信</label></span>
+    </div>
+</div>
+
+
+</body>
+<script src="/js/jquery.pjax.js?v=1.0.1" ></script>
+
+<script src="/js/script.js?v=1.0.1" ></script>
+<script>
+    var img_resize = 'default';
+    /*作者、标签的自动补全*/
+    $(function () {
+        $('.search').AutoComplete({
+            'data': ['#linux','#内存管理','#伙伴系统','#Slab','#内存释放','#伙伴系统初始化','#内存分配',],
+            'itemHeight': 20,
+            'width': 418
+        }).AutoComplete('show');
+    })
+    function initArticle() {
+        /*渲染对应的表格样式*/
+        
+            $(".post .pjax table").addClass("green_title");
+        
+
+        /*渲染打赏样式*/
+        
+        $("input[name=pay]").on("click", function () {
+            if($("input[name=pay]:checked").val()=="weixin"){
+                $(".shang_box .shang_payimg .pay_img").addClass("weixin_img");
+            } else {
+                $(".shang_box .shang_payimg .pay_img").removeClass("weixin_img");
+            }
+        })
+        
+
+        /*高亮代码块行号*/
+        
+        $('pre code').each(function(){
+            var lines = $(this).text().split('\n').length - 1, widther='';
+            if (lines>99) {
+                widther = 'widther'
+            }
+            var $numbering = $('<ul/>').addClass('pre-numbering ' + widther).attr("unselectable","on");
+            $(this).addClass('has-numbering ' + widther)
+                    .parent()
+                    .append($numbering);
+            for(var i=1;i<=lines;i++){
+                $numbering.append($('<li/>').text(i));
+            }
+        });
+        
+
+        /*访问数量*/
+        
+        $.getScript("//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js");
+        
+
+        /*代码高亮，行号对齐*/
+        $('.pre-numbering').css('line-height',$('.has-numbering').css('line-height'));
+
+        
+        
+    }
+
+    /*打赏页面隐藏与展示*/
+    
+    function dashangToggle() {
+        $(".shang_box").fadeToggle();
+        $(".hide_box").fadeToggle();
+    }
+    
+
+</script>
+
+<!--加入行号的高亮代码块样式-->
+
+<style>
+    pre{
+        position: relative;
+        margin-bottom: 24px;
+        border-radius: 10px;
+        border: 1px solid #e2dede;
+        background: #FFF;
+        overflow: hidden;
+    }
+    code.has-numbering{
+        margin-left: 30px;
+    }
+    code.has-numbering.widther{
+        margin-left: 35px;
+    }
+    .pre-numbering{
+        margin: 0px;
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 20px;
+        padding: 0.5em 3px 0.7em 5px;
+        border-right: 1px solid #C3CCD0;
+        text-align: right;
+        color: #AAA;
+        background-color: #fafafa;
+    }
+    .pre-numbering.widther {
+        width: 35px;
+    }
+</style>
+
+<!--自定义样式设置-->
+<style>
+    
+    
+    .nav {
+        width: 542px;
+    }
+    .nav.fullscreen {
+        margin-left: -542px;
+    }
+    .nav-left {
+        width: 120px;
+    }
+    
+    
+    @media screen and (max-width: 1468px) {
+        .nav {
+            width: 492px;
+        }
+        .nav.fullscreen {
+            margin-left: -492px;
+        }
+        .nav-left {
+            width: 100px;
+        }
+    }
+    
+    
+    @media screen and (max-width: 1024px) {
+        .nav {
+            width: 492px;
+            margin-left: -492px
+        }
+        .nav.fullscreen {
+            margin-left: 0;
+        }
+        .nav .hide-list.fullscreen {
+            left: 492px
+        }
+    }
+    
+    @media screen and (max-width: 426px) {
+        .nav {
+            width: 100%;
+        }
+        .nav-left {
+            width: 100%;
+        }
+    }
+    
+    
+    .nav-right .title-list nav a .post-title, .nav-right .title-list #local-search-result a .post-title {
+        color: #383636;
+    }
+    
+    
+    .nav-right .title-list nav a .post-date, .nav-right .title-list #local-search-result a .post-date {
+        color: #5e5e5f;
+    }
+    
+    
+    .nav-right nav a.hover, #local-search-result a.hover{
+        background-color: #e2e0e0;
+    }
+    
+    
+
+    /*列表样式*/
+    
+    .post .pjax article .article-entry>ol, .post .pjax article .article-entry>ul, .post .pjax article>ol, .post .pjax article>ul{
+        border: #e2dede solid 1px;
+        border-radius: 10px;
+        padding: 10px 32px 10px 56px;
+    }
+    .post .pjax article .article-entry li>ol, .post .pjax article .article-entry li>ul,.post .pjax article li>ol, .post .pjax article li>ul{
+        padding-top: 5px;
+        padding-bottom: 5px;
+    }
+    .post .pjax article .article-entry>ol>li, .post .pjax article .article-entry>ul>li,.post .pjax article>ol>li, .post .pjax article>ul>li{
+        margin-bottom: auto;
+        margin-left: auto;
+    }
+    .post .pjax article .article-entry li>ol>li, .post .pjax article .article-entry li>ul>li,.post .pjax article li>ol>li, .post .pjax article li>ul>li{
+        margin-bottom: auto;
+        margin-left: auto;
+    }
+    
+
+    /* 背景图样式 */
+    
+    
+
+
+    /*引用块样式*/
+    
+
+    /*文章列表背景图*/
+    
+    .nav-right:before {
+        content: ' ';
+        display: block;
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 100%;
+        height: 100%;
+        opacity: 0.3;
+        background: url("https://i.loli.net/2019/07/22/5d3521411f3f169375.png");
+        background-repeat: no-repeat;
+        background-position: 50% 0;
+        -ms-background-size: cover;
+        -o-background-size: cover;
+        -moz-background-size: cover;
+        -webkit-background-size: cover;
+        background-size: cover;
+    }
+    
+
+    
+</style>
+
+
+
+
+
+
+
+</html>

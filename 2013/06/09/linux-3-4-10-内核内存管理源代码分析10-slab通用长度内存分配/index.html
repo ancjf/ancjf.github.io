@@ -2,9 +2,9 @@
 <html>
 <head>
   <meta charset="utf-8">
-  <title>Hello World | 机器人的博客</title>
-  <meta name="keywords" content="">
-  <meta name="description" content="Hello World | 机器人的博客">
+  <title>linux 源代码分析10:slab通用长度内存分配 | 机器人的博客</title>
+  <meta name="keywords" content=" linux , 内存管理 , 伙伴系统 , Slab ">
+  <meta name="description" content="linux 源代码分析10:slab通用长度内存分配 | 机器人的博客">
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
 <meta property="og:type" content="article">
 <meta property="og:title" content="以太坊">
@@ -417,21 +417,37 @@
 </aside>
 <div class="post">
     <div class="pjax">
-        <article id="post-hello-world" class="article article-type-post" itemscope itemprop="blogPost">
+        <article id="post-linux-3-4-10-内核内存管理源代码分析10-slab通用长度内存分配" class="article article-type-post" itemscope itemprop="blogPost">
     
-        <h1 class="article-title">Hello World</h1>
+        <h1 class="article-title">linux 源代码分析10:slab通用长度内存分配</h1>
     
     <div class="article-meta">
         
-        <span class="top"><a>置顶</a></span>
         
         
+        <span class="book">
+            
+                <a  data-rel="linux">linux</a>
+            
+        </span>
         
+        
+        <span class="tag">
+            
+            <a class="color1">linux</a>
+            
+            <a class="color5">内存管理</a>
+            
+            <a class="color5">伙伴系统</a>
+            
+            <a class="color5">Slab</a>
+            
+        </span>
         
     </div>
     <div class="article-meta">
         
-        创建时间:<time class="date" title='更新时间: 2020-04-18 14:45:26'>2020-03-29 16:05</time>
+        创建时间:<time class="date" title='更新时间: 2020-04-18 14:37:53'>2013-06-09 20:17</time>
         
     </div>
     <div class="article-meta">
@@ -453,7 +469,7 @@
     
     <div class="toc-ref">
     
-        <ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#Quick-Start"><span class="toc-text">Quick Start</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#Create-a-new-post"><span class="toc-text">Create a new post</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#Run-server"><span class="toc-text">Run server</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#Generate-static-files"><span class="toc-text">Generate static files</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#Deploy-to-remote-sites"><span class="toc-text">Deploy to remote sites</span></a></li></ol></li></ol>
+        <ol class="toc"><li class="toc-item toc-level-1"><a class="toc-link" href="#slab通用长度内存分配"><span class="toc-text">slab通用长度内存分配</span></a><ol class="toc-child"><li class="toc-item toc-level-2"><a class="toc-link" href="#struct-cache-sizes-结构"><span class="toc-text">struct cache_sizes 结构</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#cache-names-结构"><span class="toc-text">cache_names 结构</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#malloc-sizes-变量"><span class="toc-text">malloc_sizes 变量</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#Kmalloc函数"><span class="toc-text">Kmalloc函数</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#kmalloc函数"><span class="toc-text">__kmalloc函数</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#do-kmalloc函数"><span class="toc-text">__do_kmalloc函数</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#find-general-cachep函数"><span class="toc-text">__find_general_cachep函数</span></a></li></ol></li></ol>
     
 <style>
     .left-col .switch-btn,
@@ -469,20 +485,140 @@
     
     <div class="article-entry" itemprop="articleBody">
       
-        <p>Welcome to <a href="https://hexo.io/" target="_blank" rel="noopener">Hexo</a>! This is your very first post. Check <a href="https://hexo.io/docs/" target="_blank" rel="noopener">documentation</a> for more info. If you get any problems when using Hexo, you can find the answer in <a href="https://hexo.io/docs/troubleshooting.html" target="_blank" rel="noopener">troubleshooting</a> or you can ask me on <a href="https://github.com/hexojs/hexo/issues" target="_blank" rel="noopener">GitHub</a>.</p>
-<h2 id="Quick-Start"><a href="#Quick-Start" class="headerlink" title="Quick Start"></a>Quick Start</h2><h3 id="Create-a-new-post"><a href="#Create-a-new-post" class="headerlink" title="Create a new post"></a>Create a new post</h3><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">$ hexo new <span class="string">"My New Post"</span></span><br></pre></td></tr></table></figure>
+        <h1 id="slab通用长度内存分配"><a href="#slab通用长度内存分配" class="headerlink" title="slab通用长度内存分配"></a>slab通用长度内存分配</h1><pre><code>在slab分配内存并不是总是要先创建一个slab缓存，然后创建的缓存中分配内存。在slab中创建了预先定义好的一些通用缓存，使得我们直接按长度就可以进行内存分配。我们把这些缓存叫做长度缓存。对长度缓存专门定义了一个结构struct cache_sizes。在文件中include/linux/slab_def.h定义如下：</code></pre><h2 id="struct-cache-sizes-结构"><a href="#struct-cache-sizes-结构" class="headerlink" title="struct cache_sizes 结构"></a>struct cache_sizes 结构</h2><pre><code>struct cache_sizes {
+    size_t         cs_size;      //长度
+    struct kmem_cache       *cs_cachep;       //通用slab缓存
+    #ifdefCONFIG_ZONE_DMA
+        struct kmem_cache       *cs_dmacachep;        //dma专用缓存
+    #endif
+};</code></pre><h2 id="cache-names-结构"><a href="#cache-names-结构" class="headerlink" title="cache_names 结构"></a>cache_names 结构</h2><pre><code>struct cache_names 结构专门用于对长度缓存命名。在mm/slab.c定义如下：
+struct cache_names {
+    char *name; //通用缓存的名称
+    char *name_dma; //dma缓存的名称
+};</code></pre><h2 id="malloc-sizes-变量"><a href="#malloc-sizes-变量" class="headerlink" title="malloc_sizes 变量"></a>malloc_sizes 变量</h2><pre><code>在系统中定义了一个全局变量malloc_sizes，是一个长度缓存数组，在mm/slab.c定义如下：
+structcache_sizes malloc_sizes[] = {
+    #defineCACHE(x) { .cs_size = (x) },
+    #include &lt;linux/kmalloc_sizes.h&gt;
+    CACHE(ULONG_MAX)
+    #undef CACHE
+};
+这里采用了一种宏技术，就是在linux/kmalloc_sizes.h声明了一系列的宏，如CACHE(32)，CACHE(64)，然后在555行对这个宏进行定义，556行包含这个头文件，557行加上CACHE(ULONG_MAX)，用于长度缓存的结尾。558行取消宏CACHE的定义。这样做实际的效果和
+structcache_sizes malloc_sizes[]={
+{.cs_size = 32},
+{.cs_size = 64},
+…..
+{.cs_size = ULONG_MAX }
+};
+是一样的，但提供了代码的通用性，后面还有些代码也使用了这项技术。
+另外采用同样的方法定义了一个全局数组cache_names，用于长度缓存的命名。</code></pre><h2 id="Kmalloc函数"><a href="#Kmalloc函数" class="headerlink" title="Kmalloc函数"></a>Kmalloc函数</h2><pre><code>slab通用长度内存分配函数是kmalloc，在include/linux/slab_def.h中定义，代码如下：
+128 static __always_inline void *kmalloc(size_tsize, gfp_t flags)
+129 {
+130        struct kmem_cache *cachep;
+131        void *ret;
+132
+133        if (__builtin_constant_p(size)) {
+134        int i = 0;
+135
+136        if (!size)
+137                return ZERO_SIZE_PTR;
+138
+139 #define CACHE(x) \
+140        if (size &lt;= x) \
+141                goto found; \
+142        else \
+143                i++;
+144 #include &lt;linux/kmalloc_sizes.h&gt;
+145 #undef CACHE
+146        return NULL;
+147 found:
+148 #ifdef CONFIG_ZONE_DMA
+149        if (flags &amp; GFP_DMA)
+150                cachep =malloc_sizes[i].cs_dmacachep;
+151        else
+152 #endif
+153                cachep =malloc_sizes[i].cs_cachep;
+154
+155        ret =kmem_cache_alloc_trace(size, cachep, flags);
+156
+157        return ret;
+158        }
+159        return __kmalloc(size, flags);
+160 }
 
-<p>More info: <a href="https://hexo.io/docs/writing.html" target="_blank" rel="noopener">Writing</a></p>
-<h3 id="Run-server"><a href="#Run-server" class="headerlink" title="Run server"></a>Run server</h3><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">$ hexo server</span><br></pre></td></tr></table></figure>
+__builtin_constant_p是一个用来判断一个值是否为编译期常数的gcc内存函数，是常数返回1，否则返回0。
+133-158是参数size为编译期参数的处理代码。
+139-143定义了宏CACHE，144行包含了头文件linux/kmalloc_sizes.h，在头文件linux/kmalloc_sizes.h中包含了一系列的CACHE定义，展开后就是一堆
+if(if (size &lt;= n) \
+    gotofound; \
+else\
+    i++；
+这样的代码，目的就是找到第零个满足size&lt;= n的长度缓存的在malloc_sizes数组的下标。
+148-153行是求slab缓存的代码。求出slab缓存后，就可以调用kmem_cache_alloc_trace函数进行内存分配了。
+133-158这段代码gcc在编译期间会优化，优化的结果是133-154这段代码根本不用执行，因为在编译阶段编译器就可以求出cachep的值。
+159行是size不是编译期常数的情况，直接调用__kmalloc函数进行分配。</code></pre><h2 id="kmalloc函数"><a href="#kmalloc函数" class="headerlink" title="__kmalloc函数"></a>__kmalloc函数</h2><pre><code>__kmalloc函数在mm/slab.c中实现，代码如下：
+3899 void *__kmalloc(size_t size, gfp_tflags)
+3900 {
+3901        return __do_kmalloc(size, flags, NULL);
+3902 }
 
-<p>More info: <a href="https://hexo.io/docs/server.html" target="_blank" rel="noopener">Server</a></p>
-<h3 id="Generate-static-files"><a href="#Generate-static-files" class="headerlink" title="Generate static files"></a>Generate static files</h3><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">$ hexo generate</span><br></pre></td></tr></table></figure>
+直接是对__do_kmalloc的调用。</code></pre><h2 id="do-kmalloc函数"><a href="#do-kmalloc函数" class="headerlink" title="__do_kmalloc函数"></a>__do_kmalloc函数</h2><pre><code>__do_kmalloc函数在mm/slab.c中实现，代码如下：
+3862 static __always_inline void*__do_kmalloc(size_t size, gfp_t flags,
+3863                                  void*caller)
+3864 {
+3865        struct kmem_cache *cachep;
+3866        void *ret;
+3867
+3868        /* If you want to save a few bytes .text space: replace
+3869 * __ with kmem_.
+3870 * Then kmalloc uses the uninlinedfunctions instead of the inline
+3871          * functions.
+3872 */
+3873        cachep = __find_general_cachep(size, flags);
+3874        if (unlikely(ZERO_OR_NULL_PTR(cachep)))
+3875        return cachep;
+3876        ret = __cache_alloc(cachep, flags, caller);
+3877
+3878        trace_kmalloc((unsignedlong) caller, ret,
+3879              size,cachep-&gt;buffer_size, flags);
+3880
+3881        return ret;
+3882 }
 
-<p>More info: <a href="https://hexo.io/docs/generating.html" target="_blank" rel="noopener">Generating</a></p>
-<h3 id="Deploy-to-remote-sites"><a href="#Deploy-to-remote-sites" class="headerlink" title="Deploy to remote sites"></a>Deploy to remote sites</h3><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">$ hexo deploy</span><br></pre></td></tr></table></figure>
+3873行调用__find_general_cachep查找缓存。
+3874-3875是size为零或者返回指针为空的情况，如果size大于linux/kmalloc_sizes.h中定义的长度最大的缓存，__find_general_cachep会返回空指针。
+3876调用__cache_alloc函数进行分配，__cache_alloc函数前面已经分析过。</code></pre><h2 id="find-general-cachep函数"><a href="#find-general-cachep函数" class="headerlink" title="__find_general_cachep函数"></a>__find_general_cachep函数</h2><pre><code>__find_general_cachep函数中mm/slab.c中实现，代码如下：
+732 static inline struct kmem_cache*__find_general_cachep(size_t size,
+733                                                gfp_t gfpflags)
+734{
+735        struct cache_sizes *csizep = malloc_sizes;
+736
+737#if DEBUG
+738        /* This happens if someone tries to call
+739         * kmem_cache_create(), or __kmalloc(), before
+740         * the generic caches are initialized.
+741         */
+742        BUG_ON(malloc_sizes[INDEX_AC].cs_cachep == NULL);
+743#endif
+744        if (!size)
+745        return ZERO_SIZE_PTR;
+746
+747        while (size &gt; csizep-&gt;cs_size)
+748                csizep++;
+749
+750        /*
+751         * Really subtle: The last entry with cs-&gt;cs_size==ULONG_MAX
+752         * has cs_{dma,}cachep==NULL. Thus no special case
+753         * for large kmalloc calls required.
+754         */
+755#ifdef CONFIG_ZONE_DMA
+756        if (unlikely(gfpflags &amp; GFP_DMA))
+757        returncsizep-&gt;cs_dmacachep;
+758#endif
+759        return csizep-&gt;cs_cachep;
+760}
 
-<p>More info: <a href="https://hexo.io/docs/one-command-deployment.html" target="_blank" rel="noopener">Deployment</a></p>
-
+744行，如果长度为0的情况，返回ZERO_SIZE_PTR，
+__find_general_cachep函数的关键代码是747-748两行，查找到长度大于等于size的第零个长度缓存。在malloc_sizes的定义中最后一个长度缓存是CACHE(ULONG_MAX)，在初始化代码中可以看到，并没有创建这个缓存，也就是说这个缓存是空，这样如果我们要分配的长度大于在linux/kmalloc_sizes.h中定义的最大的长度，返回的将是空空指针。</code></pre>
       
        <hr><span style="font-style: italic;color: gray;"> 转载请注明来源，欢迎对文章中的引用来源进行考证，欢迎指出任何有错误或不够清晰的表达。可以在下面评论区评论，也可以邮件至 ancjf@163.com </span>
     </div>
@@ -495,12 +631,12 @@
 
 
 <div class="article_copyright">
-    <p><span class="copy-title">文章标题:</span>Hello World</p>
+    <p><span class="copy-title">文章标题:</span>linux 源代码分析10:slab通用长度内存分配</p>
     
     <p><span class="copy-title">本文作者:</span><a  title="ancjf">ancjf</a></p>
-    <p><span class="copy-title">发布时间:</span>2020-03-29, 16:05:21</p>
-    <p><span class="copy-title">最后更新:</span>2020-04-18, 14:45:26</p>
-    <span class="copy-title">原始链接:</span><a class="post-url" href="/2020/03/29/hello-world/" title="Hello World">http://ancjf.com/2020/03/29/hello-world/</a>
+    <p><span class="copy-title">发布时间:</span>2013-06-09, 20:17:42</p>
+    <p><span class="copy-title">最后更新:</span>2020-04-18, 14:37:53</p>
+    <span class="copy-title">原始链接:</span><a class="post-url" href="/2013/06/09/linux-3-4-10-%E5%86%85%E6%A0%B8%E5%86%85%E5%AD%98%E7%AE%A1%E7%90%86%E6%BA%90%E4%BB%A3%E7%A0%81%E5%88%86%E6%9E%9010-slab%E9%80%9A%E7%94%A8%E9%95%BF%E5%BA%A6%E5%86%85%E5%AD%98%E5%88%86%E9%85%8D/" title="linux 源代码分析10:slab通用长度内存分配">http://ancjf.com/2013/06/09/linux-3-4-10-%E5%86%85%E6%A0%B8%E5%86%85%E5%AD%98%E7%AE%A1%E7%90%86%E6%BA%90%E4%BB%A3%E7%A0%81%E5%88%86%E6%9E%9010-slab%E9%80%9A%E7%94%A8%E9%95%BF%E5%BA%A6%E5%86%85%E5%AD%98%E5%88%86%E9%85%8D/</a>
     <p>
         <span class="copy-title">版权声明:</span><i class="fa fa-creative-commons"></i> <a rel="license noopener" href="http://creativecommons.org/licenses/by-nc-sa/4.0/" target="_blank" title="CC BY-NC-SA 4.0 International" target = "_blank">"署名-非商用-相同方式共享 4.0"</a> 转载请保留原文链接及作者。
     </p>
